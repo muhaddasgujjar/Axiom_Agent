@@ -1,0 +1,260 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: research
+    description: Research workspace operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /research:
+    get:
+      operationId: listResearch
+      tags: [research]
+      summary: List research jobs
+      description: Returns the most recent research jobs in the workspace
+      responses:
+        "200":
+          description: Research jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Research"
+  /research/start:
+    post:
+      operationId: startResearch
+      tags: [research]
+      summary: Start a research job
+      description: Starts a research job through the Python research pipeline and records it in the workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchInput"
+      responses:
+        "201":
+          description: Started research job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartedResearch"
+        "400":
+          description: Invalid research question
+        "502":
+          description: Research backend unavailable
+  /research/{id}:
+    get:
+      operationId: getResearch
+      tags: [research]
+      summary: Get a research job
+      parameters:
+        - $ref: "#/components/parameters/ResearchId"
+      responses:
+        "200":
+          description: Research job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Research"
+        "404":
+          description: Research job not found
+  /research/{id}/pause:
+    post:
+      operationId: pauseResearch
+      tags: [research]
+      summary: Pause or resume research
+      parameters:
+        - $ref: "#/components/parameters/ResearchId"
+      responses:
+        "200":
+          description: Updated research job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Research"
+        "404":
+          description: Research job not found
+  /workspace/summary:
+    get:
+      operationId: getWorkspaceSummary
+      tags: [research]
+      summary: Get workspace summary
+      description: Returns lightweight aggregate context for the workspace shell
+      responses:
+        "200":
+          description: Workspace summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceSummary"
+components:
+  parameters:
+    ResearchId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ResearchInput:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 10
+      required:
+        - query
+    StartedResearch:
+      type: object
+      properties:
+        research_id:
+          type: string
+        id:
+          type: string
+        query:
+          type: string
+        status:
+          type: string
+          enum: [planning, searching, reading, synthesizing, verifying, formatting, done, paused, failed]
+      required:
+        - research_id
+        - id
+        - query
+        - status
+    Agent:
+      type: object
+      properties:
+        name:
+          type: string
+        detail:
+          type: string
+        count:
+          type: string
+        status:
+          type: string
+          enum: [queued, active, done]
+        progress:
+          type: number
+      required: [name, detail, count, status, progress]
+    Source:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        source:
+          type: string
+        progress:
+          type: number
+      required: [type, title, source, progress]
+    RecentResearch:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        meta:
+          type: string
+        status:
+          type: string
+      required: [id, title, meta, status]
+    Research:
+      type: object
+      properties:
+        id:
+          type: string
+        query:
+          type: string
+        status:
+          type: string
+          enum: [planning, searching, reading, synthesizing, verifying, formatting, done, paused, failed]
+        progress:
+          type: number
+        elapsedMinutes:
+          type: number
+        verificationScore:
+          type: number
+        sourcesCount:
+          type: number
+        claimsChecked:
+          type: number
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Agent"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/Source"
+        recent:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentResearch"
+        summary:
+          type: string
+        report:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - query
+        - status
+        - progress
+        - elapsedMinutes
+        - verificationScore
+        - sourcesCount
+        - claimsChecked
+        - agents
+        - sources
+        - recent
+        - summary
+        - report
+        - createdAt
+        - updatedAt
+    WorkspaceSummary:
+      type: object
+      properties:
+        activeResearch:
+          type: number
+        completedReports:
+          type: number
+        sourcesRead:
+          type: number
+        contextUsed:
+          type: number
+      required: [activeResearch, completedReports, sourcesRead, contextUsed]
+

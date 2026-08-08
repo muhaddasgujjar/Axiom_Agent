@@ -1,0 +1,1428 @@
+DEEP RESEARCH AGENT — CLAUDE CODE MASTER PROMPT
+=================================================
+Product: AI Deep Research Agent — gives any professional a PhD-level
+         research team for $49/mo
+Developer: Muhammad Muhaddas (maiku.app, OrionAI, VoiceIQ)
+Run in new folder: mkdir deep-research && cd deep-research && claude
+
+════════════════════════════════════════════════════════════════════════
+WHAT YOU ARE BUILDING
+════════════════════════════════════════════════════════════════════════
+
+A multi-agent research system. User submits a research question.
+The system autonomously:
+  1. Breaks it into 8-12 sub-questions
+  2. Searches 50+ sources in parallel
+  3. Reads full documents (not snippets)
+  4. Synthesizes findings into a structured report
+  5. Runs a verification pass to catch hallucinations
+  6. Returns a citable, trustworthy research report in 2-10 minutes
+
+Target users: Consultants, VCs, journalists, policy analysts,
+              startup founders, lawyers, academics
+
+Differentiator vs Perplexity/ChatGPT:
+- Reads FULL documents, not just snippets
+- Explicit verification pass — every claim checked against sources
+- Structured output with confidence scores per claim
+- Parallel execution across 50+ sources
+- Citable report with exact source links
+
+════════════════════════════════════════════════════════════════════════
+ARCHITECTURE — THE 6-AGENT GRAPH
+════════════════════════════════════════════════════════════════════════
+
+AGENT 1: PLANNER
+  Input:  User's research question
+  Output: 8-12 sub-questions + search strategy
+  LLM:    Groq Llama 3.3 70B
+  Role:   Decomposes question into orthogonal research angles
+
+AGENT 2: SOURCE HUNTER (runs in parallel, 1 instance per sub-question)
+  Input:  One sub-question
+  Output: 5-10 source URLs with relevance scores
+  Tools:  Tavily Search API (free tier: 1000 searches/mo)
+          + Google Custom Search (100 queries/day free)
+  Role:   Finds the best sources for each sub-question
+
+AGENT 3: DEEP READER (runs in parallel, 1 per source)
+  Input:  URL
+  Output: Structured extraction {claims, data, methodology, conclusion}
+  Tools:  httpx web fetcher + BeautifulSoup parser
+  LLM:    Groq Llama 3.3 70B (summarize + extract)
+  Role:   Reads full document, not just snippet
+
+AGENT 4: SYNTHESIZER
+  Input:  All extracted content from all sources
+  Output: Structured draft report with inline citations
+  LLM:    Groq Llama 3.3 70B
+  Role:   Builds coherent narrative from all findings
+
+AGENT 5: VERIFIER (the hallucination killer)
+  Input:  Draft report + all source documents
+  Output: Verified report with confidence scores
+  Model:  cross-encoder/nli-deberta-v3-small (local ONNX, free)
+  Role:   Checks every claim against its cited source
+          Removes or flags any unverified claim
+
+AGENT 6: FORMATTER
+  Input:  Verified report
+  Output: Final report in Markdown + JSON
+  Role:   Structures into executive summary, sections, citations, appendix
+
+════════════════════════════════════════════════════════════════════════
+TECH STACK — ALL FREE UNTIL REVENUE
+════════════════════════════════════════════════════════════════════════
+
+Agent framework:  LangGraph 1.0 (graph-based, stateful, parallel)
+LLM:              Groq Llama 3.3 70B (free tier: 14,400 req/day)
+Search:           Tavily API (free: 1000 searches/mo)
+Web fetching:     httpx + BeautifulSoup4 (free)
+Verification ML:  cross-encoder/nli-deberta-v3-small via sentence-transformers
+                  (22MB model, runs locally, zero API cost)
+Checkpointing:    AsyncPostgresSaver OR SqliteSaver (local dev)
+Backend:          FastAPI + SQLite (later PostgreSQL)
+Frontend:         Next.js + Vercel free tier
+Queue:            asyncio (dev) → Redis (production)
+Observability:    Langfuse free tier (critical for debugging)
+Payments:         Stripe (Week 5, same as Maiku)
+
+════════════════════════════════════════════════════════════════════════
+PROJECT STRUCTURE
+════════════════════════════════════════════════════════════════════════
+
+deep-research/
+├── .env.example
+├── requirements.txt
+│
+├── agents/
+│   ├── state.py              # ResearchState TypedDict
+│   ├── graph.py              # LangGraph StateGraph definition
+│   ├── planner.py            # Agent 1: Query decomposer
+│   ├── source_hunter.py      # Agent 2: Source finder (parallel)
+│   ├── deep_reader.py        # Agent 3: Full document reader (parallel)
+│   ├── synthesizer.py        # Agent 4: Report builder
+│   ├── verifier.py           # Agent 5: Hallucination killer
+│   └── formatter.py          # Agent 6: Final report formatter
+│
+├── tools/
+│   ├── search.py             # Tavily + Google search tools
+│   ├── fetcher.py            # Web content fetcher
+│   └── nli_scorer.py         # Local NLI verification model
+│
+├── api/
+│   ├── main.py               # FastAPI app
+│   ├── routers/
+│   │   ├── research.py       # POST /research, GET /research/{id}
+│   │   └── reports.py        # GET /reports (history)
+│   └── database.py           # SQLite schema
+│
+├── dashboard/                # Next.js frontend
+│   ├── app/
+│   │   ├── page.tsx          # Research input + recent reports
+│   │   ├── research/
+│   │   │   └── [id]/page.tsx # Live progress + final report
+│   │   └── history/page.tsx  # All past research
+│   └── package.json
+│
+└── scripts/
+    ├── test_agent.py         # End-to-end test
+    └── seed_demo.py          # Create demo research for screenshots
+
+════════════════════════════════════════════════════════════════════════
+.ENV.EXAMPLE
+════════════════════════════════════════════════════════════════════════
+
+GROQ_API_KEY=your_groq_api_key
+TAVILY_API_KEY=your_tavily_api_key       # free at tavily.com
+LANGFUSE_PUBLIC_KEY=pk-lf-...            # free at langfuse.com
+LANGFUSE_SECRET_KEY=sk-lf-...
+DATABASE_URL=sqlite:///./research.db
+SECRET_KEY=your-secret-key-32chars
+
+# Optional: Google Custom Search (100/day free)
+GOOGLE_API_KEY=
+GOOGLE_CSE_ID=
+
+════════════════════════════════════════════════════════════════════════
+REQUIREMENTS.TXT
+════════════════════════════════════════════════════════════════════════
+
+# Agent framework
+langgraph==1.0.0
+langchain==0.3.0
+langchain-groq==0.2.0
+langchain-core==0.3.0
+
+# LLM
+groq==0.11.0
+
+# Search & fetching
+tavily-python==0.3.0
+httpx==0.27.0
+beautifulsoup4==4.12.0
+lxml==5.2.0
+readability-lxml==0.8.1   # Extract article text from any page
+
+# Verification ML (local, free)
+sentence-transformers==3.0.0
+torch==2.4.0
+
+# API
+fastapi==0.115.0
+uvicorn==0.30.0
+sqlalchemy==2.0.35
+python-dotenv==1.0.0
+pydantic==2.8.0
+
+# Observability
+langfuse==2.35.0
+
+# Utilities
+tenacity==8.3.0     # Retry logic for rate limits
+aiohttp==3.9.0
+
+════════════════════════════════════════════════════════════════════════
+STEP 1: STATE SCHEMA — agents/state.py
+════════════════════════════════════════════════════════════════════════
+
+```python
+# agents/state.py
+from typing import TypedDict, Annotated
+from langgraph.graph.message import add_messages
+
+class SubQuestion(TypedDict):
+    id: str
+    question: str
+    angle: str          # historical | current | data | expert | opposing | practical
+
+class Source(TypedDict):
+    url: str
+    title: str
+    sub_question_id: str
+    relevance_score: float
+    snippet: str
+
+class ExtractedContent(TypedDict):
+    url: str
+    title: str
+    full_text: str              # Full article text (not snippet)
+    key_claims: list[str]       # Bullet points of main claims
+    data_points: list[str]      # Statistics, numbers, dates found
+    methodology: str | None     # How was this info gathered
+    author: str | None
+    date: str | None
+    word_count: int
+    fetch_success: bool
+    error: str | None
+
+class Claim(TypedDict):
+    text: str                   # The specific claim
+    source_urls: list[str]      # Which sources support it
+    confidence: float           # NLI verification score 0-1
+    verified: bool              # Did the NLI check pass
+    sub_question_id: str
+
+class ReportSection(TypedDict):
+    title: str
+    content: str
+    claims: list[Claim]
+    sources_used: list[str]
+
+class ResearchState(TypedDict):
+    # Input
+    query: str
+    research_id: str
+    user_id: str
+
+    # Planner output
+    sub_questions: list[SubQuestion]
+    search_strategy: str
+
+    # Source Hunter output
+    sources: list[Source]       # All found sources (50+)
+
+    # Deep Reader output
+    extracted: list[ExtractedContent]  # Full content of each source
+    fetch_errors: list[str]
+
+    # Synthesizer output
+    draft_sections: list[ReportSection]
+    draft_summary: str
+
+    # Verifier output
+    verified_sections: list[ReportSection]
+    removed_claims: list[str]   # Claims that failed verification
+    verification_score: float   # 0-1, overall report trustworthiness
+
+    # Formatter output
+    final_report: str           # Markdown
+    final_report_json: dict     # Structured JSON
+    citations: list[dict]       # [{url, title, date, accessed}]
+
+    # Tracking
+    status: str                 # planning | searching | reading | synthesizing | verifying | done | failed
+    messages: Annotated[list, add_messages]
+    error: str | None
+    duration_seconds: float | None
+```
+
+════════════════════════════════════════════════════════════════════════
+STEP 2: TOOLS — tools/search.py + tools/fetcher.py
+════════════════════════════════════════════════════════════════════════
+
+BUILD tools/search.py:
+
+```python
+# tools/search.py
+import os
+from tavily import AsyncTavilyClient
+from tenacity import retry, stop_after_attempt, wait_exponential
+import httpx
+
+tavily = AsyncTavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+async def tavily_search(query: str, max_results: int = 10) -> list[dict]:
+    """
+    Search via Tavily API with retry on failure.
+    Returns: [{url, title, snippet, score}]
+    """
+    try:
+        response = await tavily.search(
+            query=query,
+            max_results=max_results,
+            search_depth="advanced",    # reads more of each page
+            include_domains=[],          # no domain restrictions
+            exclude_domains=["reddit.com", "quora.com"]  # exclude low-quality
+        )
+        return [
+            {
+                "url": r["url"],
+                "title": r.get("title", ""),
+                "snippet": r.get("content", ""),
+                "score": r.get("score", 0.5)
+            }
+            for r in response.get("results", [])
+        ]
+    except Exception as e:
+        print(f"Tavily search failed for '{query}': {e}")
+        return []
+
+async def multi_search(queries: list[str], results_per_query: int = 7) -> list[dict]:
+    """
+    Run multiple searches in parallel.
+    Deduplicates by URL. Returns combined results.
+    """
+    import asyncio
+    tasks = [tavily_search(q, results_per_query) for q in queries]
+    all_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    seen_urls = set()
+    deduped = []
+    for result_list in all_results:
+        if isinstance(result_list, Exception):
+            continue
+        for result in result_list:
+            url = result["url"]
+            if url not in seen_urls:
+                seen_urls.add(url)
+                deduped.append(result)
+
+    return deduped
+```
+
+BUILD tools/fetcher.py:
+
+```python
+# tools/fetcher.py
+# This is the key differentiator: we read FULL documents, not just snippets
+import httpx
+from readability import Document  # readability-lxml: extracts article text
+from bs4 import BeautifulSoup
+from tenacity import retry, stop_after_attempt, wait_exponential
+import asyncio
+
+MAX_CONTENT_CHARS = 8000    # Groq context limit management
+FETCH_TIMEOUT = 15          # seconds
+MAX_CONCURRENT_FETCHES = 10
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Research Agent; educational use)",
+    "Accept": "text/html,application/xhtml+xml",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=5))
+async def fetch_full_content(url: str) -> dict:
+    """
+    Fetch and extract full readable text from a URL.
+    Uses readability-lxml to extract main article content
+    (removes navbars, ads, footers — same as Pocket/Readwise).
+    """
+    try:
+        async with httpx.AsyncClient(
+            timeout=FETCH_TIMEOUT,
+            follow_redirects=True,
+            headers=HEADERS
+        ) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            # Use readability to extract main content
+            doc = Document(response.text)
+            article_html = doc.summary()
+            title = doc.title()
+
+            # Strip HTML tags
+            soup = BeautifulSoup(article_html, "lxml")
+            text = soup.get_text(separator="\n", strip=True)
+
+            # Truncate to context limit
+            text = text[:MAX_CONTENT_CHARS]
+
+            if len(text) < 100:
+                # Readability failed — fall back to raw text extraction
+                soup = BeautifulSoup(response.text, "lxml")
+                for tag in soup(["script", "style", "nav", "header", "footer"]):
+                    tag.decompose()
+                text = soup.get_text(separator="\n", strip=True)[:MAX_CONTENT_CHARS]
+
+            return {
+                "url": url,
+                "title": title,
+                "full_text": text,
+                "word_count": len(text.split()),
+                "fetch_success": True,
+                "error": None
+            }
+
+    except Exception as e:
+        return {
+            "url": url,
+            "title": "",
+            "full_text": "",
+            "word_count": 0,
+            "fetch_success": False,
+            "error": str(e)[:200]
+        }
+
+
+async def fetch_all(urls: list[str]) -> list[dict]:
+    """
+    Fetch multiple URLs with concurrency limit.
+    Prevents overwhelming target servers.
+    """
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_FETCHES)
+
+    async def fetch_with_limit(url: str) -> dict:
+        async with semaphore:
+            return await fetch_full_content(url)
+
+    return await asyncio.gather(*[fetch_with_limit(url) for url in urls])
+```
+
+BUILD tools/nli_scorer.py:
+
+```python
+# tools/nli_scorer.py
+# LOCAL NLI model — zero API cost, zero latency, zero hallucinations about sources
+# This is the core of the verification pass
+from sentence_transformers import CrossEncoder
+import numpy as np
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_nli_model() -> CrossEncoder:
+    """Load once, reuse. ~22MB model, loads in 3-5 seconds."""
+    print("Loading NLI verification model...")
+    model = CrossEncoder(
+        "cross-encoder/nli-deberta-v3-small",
+        default_activation_function=None
+    )
+    print("✅ NLI model loaded")
+    return model
+
+def verify_claim(claim: str, source_text: str) -> dict:
+    """
+    Check if a claim is supported by the source text.
+    Uses NLI (Natural Language Inference):
+      - ENTAILMENT: source text supports the claim → verified ✅
+      - NEUTRAL: source text doesn't address the claim → unverified ⚠
+      - CONTRADICTION: source text contradicts the claim → flagged ❌
+
+    Returns: {
+        label: entailment|neutral|contradiction,
+        confidence: float 0-1,
+        verified: bool
+    }
+    """
+    model = get_nli_model()
+
+    # Split source into 512-char chunks (NLI model limit)
+    # Check claim against each chunk, take max entailment score
+    chunks = [source_text[i:i+512] for i in range(0, min(len(source_text), 4096), 400)]
+
+    best_entailment = 0.0
+    worst_contradiction = 0.0
+
+    for chunk in chunks[:10]:  # max 10 chunks per source
+        if len(chunk) < 50:
+            continue
+        scores = model.predict([[chunk, claim]])
+        # CrossEncoder NLI: [contradiction, neutral, entailment]
+        probs = softmax(scores[0])
+        entailment = float(probs[2])
+        contradiction = float(probs[0])
+
+        best_entailment = max(best_entailment, entailment)
+        worst_contradiction = max(worst_contradiction, contradiction)
+
+    # Determine label
+    if best_entailment > 0.6:
+        label = "entailment"
+        verified = True
+    elif worst_contradiction > 0.5:
+        label = "contradiction"
+        verified = False
+    else:
+        label = "neutral"
+        verified = False
+
+    return {
+        "label": label,
+        "confidence": round(best_entailment, 3),
+        "verified": verified,
+        "flagged_contradiction": worst_contradiction > 0.5
+    }
+
+def softmax(x):
+    e = np.exp(x - np.max(x))
+    return e / e.sum()
+
+def batch_verify(claims: list[str], source_texts: list[str]) -> list[dict]:
+    """
+    Verify multiple claims against their respective sources.
+    claims[i] is verified against source_texts[i]
+    """
+    return [
+        verify_claim(claim, source)
+        for claim, source in zip(claims, source_texts)
+    ]
+```
+
+════════════════════════════════════════════════════════════════════════
+STEP 3: THE 6 AGENTS
+════════════════════════════════════════════════════════════════════════
+
+BUILD agents/planner.py:
+
+```python
+# agents/planner.py
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
+from agents.state import ResearchState, SubQuestion
+import json, uuid
+
+PLANNER_SYSTEM = """You are a research planning agent for a deep research system.
+Your job: decompose a complex research question into 8-10 specific sub-questions
+that together provide complete coverage of the topic.
+
+RULES:
+1. Each sub-question must explore a DIFFERENT angle — no overlap
+2. Cover all these angles: historical context, current state, data/statistics,
+   expert opinion, opposing views, practical implications, future outlook
+3. Sub-questions must be specific enough to search for, not vague
+4. Return ONLY valid JSON. No other text.
+
+OUTPUT FORMAT:
+{
+  "sub_questions": [
+    {"id": "sq_1", "question": "...", "angle": "historical"},
+    {"id": "sq_2", "question": "...", "angle": "current"},
+    ...
+  ],
+  "search_strategy": "2-sentence description of overall research approach"
+}"""
+
+async def planner_node(state: ResearchState) -> dict:
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.3)
+
+    response = await llm.ainvoke([
+        SystemMessage(content=PLANNER_SYSTEM),
+        HumanMessage(content=f"Research question: {state['query']}")
+    ])
+
+    try:
+        raw = response.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(raw)
+
+        sub_questions: list[SubQuestion] = []
+        for sq in parsed.get("sub_questions", []):
+            sub_questions.append({
+                "id": sq.get("id", f"sq_{uuid.uuid4().hex[:6]}"),
+                "question": sq["question"],
+                "angle": sq.get("angle", "general")
+            })
+
+        return {
+            "sub_questions": sub_questions,
+            "search_strategy": parsed.get("search_strategy", ""),
+            "status": "searching",
+            "messages": [response]
+        }
+
+    except json.JSONDecodeError:
+        # Fallback: create generic sub-questions
+        return {
+            "sub_questions": [
+                {"id": "sq_1", "question": state["query"] + " overview", "angle": "general"},
+                {"id": "sq_2", "question": state["query"] + " statistics data", "angle": "data"},
+                {"id": "sq_3", "question": state["query"] + " expert analysis", "angle": "expert"},
+                {"id": "sq_4", "question": state["query"] + " challenges problems", "angle": "opposing"},
+            ],
+            "search_strategy": "General research approach",
+            "status": "searching",
+            "messages": [response]
+        }
+```
+
+BUILD agents/source_hunter.py:
+
+```python
+# agents/source_hunter.py
+# Runs searches for ALL sub-questions in parallel
+from agents.state import ResearchState, Source
+from tools.search import multi_search
+import asyncio
+
+async def source_hunter_node(state: ResearchState) -> dict:
+    """
+    For each sub-question, run a search.
+    All searches run in PARALLEL for speed.
+    Target: 50+ unique sources across all sub-questions.
+    """
+    sub_questions = state["sub_questions"]
+
+    # Build search queries — one per sub-question
+    queries = [sq["question"] for sq in sub_questions]
+
+    # Run all searches in parallel
+    all_results = await multi_search(queries, results_per_query=8)
+
+    # Map results back to sub-questions (by search order)
+    sources: list[Source] = []
+    for result in all_results:
+        # Find which sub-question this came from (by URL order, approximate)
+        sources.append({
+            "url": result["url"],
+            "title": result["title"],
+            "sub_question_id": "general",  # simplified — can be improved
+            "relevance_score": result["score"],
+            "snippet": result["snippet"]
+        })
+
+    # Sort by relevance, keep top 50
+    sources = sorted(sources, key=lambda x: x["relevance_score"], reverse=True)[:50]
+
+    print(f"✅ Source Hunter: found {len(sources)} unique sources")
+
+    return {
+        "sources": sources,
+        "status": "reading"
+    }
+```
+
+BUILD agents/deep_reader.py:
+
+```python
+# agents/deep_reader.py
+# THE KEY DIFFERENTIATOR: reads full documents, not snippets
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
+from agents.state import ResearchState, ExtractedContent
+from tools.fetcher import fetch_all
+import asyncio, json
+
+EXTRACTOR_SYSTEM = """Extract structured information from this article.
+Return ONLY valid JSON:
+{
+  "key_claims": ["claim 1", "claim 2", ...],     // 3-8 most important claims
+  "data_points": ["stat 1", "stat 2", ...],       // numbers, percentages, dates
+  "methodology": "how this info was gathered or null",
+  "author": "author name or null",
+  "date": "publication date or null",
+  "summary": "2-3 sentence summary"
+}
+Extract ONLY what is directly stated in the text. No inference."""
+
+async def deep_reader_node(state: ResearchState) -> dict:
+    """
+    Fetch and read full content of all sources in parallel.
+    Then use Groq to extract structured claims from each.
+    """
+    sources = state["sources"]
+    urls = [s["url"] for s in sources]
+
+    # Fetch all URLs in parallel (with concurrency limit)
+    print(f"📖 Deep Reader: fetching {len(urls)} sources...")
+    fetch_results = await fetch_all(urls)
+
+    # Now extract structured content using Groq
+    # Process in batches of 5 to avoid rate limits
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
+    extracted: list[ExtractedContent] = []
+    errors: list[str] = []
+
+    async def extract_one(fetch_result: dict) -> ExtractedContent:
+        if not fetch_result["fetch_success"] or len(fetch_result["full_text"]) < 100:
+            return {**fetch_result, "key_claims": [], "data_points": [],
+                    "methodology": None, "author": None, "date": None}
+
+        # Truncate for Groq context window
+        text_for_llm = fetch_result["full_text"][:4000]
+
+        try:
+            response = await llm.ainvoke([
+                SystemMessage(content=EXTRACTOR_SYSTEM),
+                HumanMessage(content=f"Article:\n{text_for_llm}")
+            ])
+            raw = response.content.strip().replace("```json","").replace("```","")
+            parsed = json.loads(raw)
+
+            return {
+                **fetch_result,
+                "key_claims": parsed.get("key_claims", []),
+                "data_points": parsed.get("data_points", []),
+                "methodology": parsed.get("methodology"),
+                "author": parsed.get("author"),
+                "date": parsed.get("date"),
+            }
+        except Exception as e:
+            errors.append(f"Extraction failed for {fetch_result['url']}: {e}")
+            return {**fetch_result, "key_claims": [], "data_points": [],
+                    "methodology": None, "author": None, "date": None}
+
+    # Process with rate limiting
+    semaphore = asyncio.Semaphore(3)  # 3 concurrent Groq calls max
+
+    async def extract_with_limit(result):
+        async with semaphore:
+            return await extract_one(result)
+
+    extracted = await asyncio.gather(*[extract_with_limit(r) for r in fetch_results])
+
+    successful = [e for e in extracted if e["fetch_success"] and e["key_claims"]]
+    print(f"✅ Deep Reader: extracted from {len(successful)}/{len(urls)} sources")
+
+    return {
+        "extracted": list(extracted),
+        "fetch_errors": errors,
+        "status": "synthesizing"
+    }
+```
+
+BUILD agents/synthesizer.py:
+
+```python
+# agents/synthesizer.py
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
+from agents.state import ResearchState, ReportSection, Claim
+import json
+
+SYNTHESIZER_SYSTEM = """You are a research synthesis expert.
+Given research findings from multiple sources, write a comprehensive research report.
+
+RULES:
+1. Group findings into logical sections (Introduction, Key Findings, Data & Evidence,
+   Opposing Views, Implications, Conclusion)
+2. Cite sources inline: "According to [Source Title] ([URL])..."
+3. Do NOT add claims not present in the provided research
+4. When sources contradict, note the contradiction explicitly
+5. Use precise language — avoid vague claims
+6. Return structured JSON:
+{
+  "summary": "3-4 sentence executive summary",
+  "sections": [
+    {
+      "title": "section title",
+      "content": "section text with inline citations",
+      "source_urls": ["url1", "url2"]
+    }
+  ]
+}"""
+
+async def synthesizer_node(state: ResearchState) -> dict:
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4)
+
+    # Build research digest for the LLM
+    # Only include sources with actual content
+    good_sources = [
+        e for e in state["extracted"]
+        if e["fetch_success"] and len(e.get("key_claims", [])) > 0
+    ]
+
+    # Build compact context (respect Groq context window)
+    context_parts = []
+    total_chars = 0
+    MAX_CONTEXT = 28000  # leave room for system prompt + output
+
+    for source in good_sources:
+        part = f"""
+SOURCE: {source['title']}
+URL: {source['url']}
+DATE: {source.get('date', 'Unknown')}
+KEY CLAIMS:
+{chr(10).join(f'- {c}' for c in source.get('key_claims', [])[:5])}
+DATA POINTS:
+{chr(10).join(f'- {d}' for d in source.get('data_points', [])[:3])}
+"""
+        if total_chars + len(part) > MAX_CONTEXT:
+            break
+        context_parts.append(part)
+        total_chars += len(part)
+
+    research_context = "\n---\n".join(context_parts)
+
+    try:
+        response = await llm.ainvoke([
+            SystemMessage(content=SYNTHESIZER_SYSTEM),
+            HumanMessage(content=f"""
+Research Question: {state['query']}
+
+Research Findings:
+{research_context}
+
+Write the synthesis report:""")
+        ])
+
+        raw = response.content.strip().replace("```json","").replace("```","")
+        parsed = json.loads(raw)
+
+        sections: list[ReportSection] = []
+        for sec in parsed.get("sections", []):
+            sections.append({
+                "title": sec["title"],
+                "content": sec["content"],
+                "claims": [],       # Will be filled by verifier
+                "sources_used": sec.get("source_urls", [])
+            })
+
+        return {
+            "draft_sections": sections,
+            "draft_summary": parsed.get("summary", ""),
+            "status": "verifying",
+            "messages": [response]
+        }
+
+    except Exception as e:
+        return {
+            "draft_sections": [],
+            "draft_summary": f"Synthesis failed: {e}",
+            "status": "failed",
+            "error": str(e)
+        }
+```
+
+BUILD agents/verifier.py — THE HALLUCINATION KILLER:
+
+```python
+# agents/verifier.py
+# This is what separates you from Perplexity and ChatGPT.
+# Every factual claim is checked against its cited source using NLI.
+# Claims that fail verification are removed or flagged.
+
+from agents.state import ResearchState, ReportSection, Claim
+from tools.nli_scorer import verify_claim
+import re
+
+def extract_claims_from_text(text: str) -> list[str]:
+    """
+    Extract individual factual claims from a paragraph.
+    Strategy: split by sentence, filter for sentences with facts.
+    """
+    # Split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+
+    claims = []
+    for sentence in sentences:
+        sentence = sentence.strip()
+        # Skip very short sentences, questions, and section headers
+        if (len(sentence) > 30 and
+            not sentence.endswith("?") and
+            not sentence.isupper() and
+            not sentence.startswith("#")):
+            claims.append(sentence)
+
+    return claims[:10]  # Max 10 claims per section to keep runtime manageable
+
+
+def find_source_text(url: str, extracted: list[dict]) -> str:
+    """Find the full text for a given source URL."""
+    for source in extracted:
+        if source["url"] == url:
+            return source.get("full_text", "")
+    return ""
+
+
+async def verifier_node(state: ResearchState) -> dict:
+    """
+    For each section, extract claims and verify them against cited sources.
+    Claims with NLI score < 0.4 are flagged or removed.
+
+    This is the critical step that prevents hallucinations.
+    Uses local NLI model — zero API cost, zero latency.
+    """
+    print("🔍 Verifier: checking all claims against sources...")
+
+    verified_sections: list[ReportSection] = []
+    all_removed_claims: list[str] = []
+    total_claims = 0
+    verified_claims = 0
+
+    for section in state["draft_sections"]:
+        # Extract claims from this section's text
+        raw_claims = extract_claims_from_text(section["content"])
+        verified_section_claims: list[Claim] = []
+
+        for claim_text in raw_claims:
+            total_claims += 1
+
+            # Find the best supporting source for this claim
+            best_score = 0.0
+            best_source_url = None
+            verified = False
+
+            # Check against all sources used in this section
+            for url in section["sources_used"][:5]:  # check top 5 sources
+                source_text = find_source_text(url, state["extracted"])
+                if not source_text:
+                    continue
+
+                result = verify_claim(claim_text, source_text)
+
+                if result["confidence"] > best_score:
+                    best_score = result["confidence"]
+                    best_source_url = url
+                    verified = result["verified"]
+
+                if verified:
+                    break  # Found good support, stop checking more sources
+
+            if verified or best_score > 0.35:
+                # Claim passes verification (or has partial support)
+                verified_claims += 1
+                verified_section_claims.append({
+                    "text": claim_text,
+                    "source_urls": [best_source_url] if best_source_url else [],
+                    "confidence": round(best_score, 3),
+                    "verified": verified,
+                    "sub_question_id": ""
+                })
+            else:
+                # Claim failed verification — log it
+                all_removed_claims.append(
+                    f"REMOVED (score={best_score:.2f}): {claim_text[:100]}"
+                )
+                # Optionally: add [UNVERIFIED] tag instead of removing
+                # For now: remove to maintain quality
+
+        verified_sections.append({
+            **section,
+            "claims": verified_section_claims
+        })
+
+    # Calculate overall verification score
+    verification_score = verified_claims / total_claims if total_claims > 0 else 0.0
+
+    print(f"✅ Verifier: {verified_claims}/{total_claims} claims verified "
+          f"(score: {verification_score:.0%})")
+    print(f"   Removed {len(all_removed_claims)} unverified claims")
+
+    return {
+        "verified_sections": verified_sections,
+        "removed_claims": all_removed_claims,
+        "verification_score": round(verification_score, 3),
+        "status": "formatting"
+    }
+```
+
+BUILD agents/formatter.py:
+
+```python
+# agents/formatter.py
+from agents.state import ResearchState
+from datetime import datetime
+
+def formatter_node(state: ResearchState) -> dict:
+    """
+    Converts verified research into final report formats:
+    1. Markdown (for display)
+    2. JSON (for API consumers)
+    3. Citation list
+    """
+    query = state["query"]
+    sections = state["verified_sections"]
+    summary = state["draft_summary"]
+    verification_score = state.get("verification_score", 0)
+    sources = state.get("sources", [])
+
+    # Build citations
+    citations = []
+    seen_urls = set()
+    for section in sections:
+        for claim in section.get("claims", []):
+            for url in claim.get("source_urls", []):
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    # Find matching source metadata
+                    source_meta = next(
+                        (s for s in sources if s["url"] == url), {}
+                    )
+                    citations.append({
+                        "url": url,
+                        "title": source_meta.get("title", url),
+                        "accessed": datetime.now().strftime("%B %d, %Y")
+                    })
+
+    # Build Markdown report
+    md_parts = [
+        f"# Research Report: {query}\n",
+        f"*Generated by Deep Research Agent | "
+        f"Verification Score: {verification_score:.0%} | "
+        f"{len(citations)} sources*\n",
+        "---\n",
+        f"## Executive Summary\n\n{summary}\n",
+    ]
+
+    for section in sections:
+        md_parts.append(f"\n## {section['title']}\n\n{section['content']}\n")
+
+    # Citations
+    md_parts.append("\n## References\n")
+    for i, cite in enumerate(citations, 1):
+        md_parts.append(f"{i}. [{cite['title']}]({cite['url']}) — Accessed {cite['accessed']}")
+
+    # Verification note
+    md_parts.append(f"\n\n---\n*This report has a {verification_score:.0%} verification "
+                    f"score — all claims were checked against their source documents "
+                    f"using NLI (Natural Language Inference).*")
+
+    final_md = "\n".join(md_parts)
+
+    # Build JSON
+    final_json = {
+        "query": query,
+        "summary": summary,
+        "sections": [
+            {
+                "title": s["title"],
+                "content": s["content"],
+                "verified_claims": [c for c in s.get("claims", []) if c["verified"]],
+                "sources": s["sources_used"]
+            }
+            for s in sections
+        ],
+        "citations": citations,
+        "metadata": {
+            "sources_searched": len(state.get("sources", [])),
+            "sources_read": len([e for e in state.get("extracted", []) if e["fetch_success"]]),
+            "verification_score": verification_score,
+            "claims_removed": len(state.get("removed_claims", []))
+        }
+    }
+
+    return {
+        "final_report": final_md,
+        "final_report_json": final_json,
+        "citations": citations,
+        "status": "done"
+    }
+```
+
+════════════════════════════════════════════════════════════════════════
+STEP 4: THE LANGGRAPH GRAPH — agents/graph.py
+════════════════════════════════════════════════════════════════════════
+
+```python
+# agents/graph.py
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from agents.state import ResearchState
+from agents.planner import planner_node
+from agents.source_hunter import source_hunter_node
+from agents.deep_reader import deep_reader_node
+from agents.synthesizer import synthesizer_node
+from agents.verifier import verifier_node
+from agents.formatter import formatter_node
+
+def build_research_graph(checkpointer=None) -> StateGraph:
+    graph = StateGraph(ResearchState)
+
+    # Add all 6 nodes
+    graph.add_node("planner",       planner_node)
+    graph.add_node("source_hunter", source_hunter_node)
+    graph.add_node("deep_reader",   deep_reader_node)
+    graph.add_node("synthesizer",   synthesizer_node)
+    graph.add_node("verifier",      verifier_node)
+    graph.add_node("formatter",     formatter_node)
+
+    # Linear flow (no cycles needed for research)
+    graph.set_entry_point("planner")
+    graph.add_edge("planner",       "source_hunter")
+    graph.add_edge("source_hunter", "deep_reader")
+    graph.add_edge("deep_reader",   "synthesizer")
+    graph.add_edge("synthesizer",   "verifier")
+    graph.add_edge("verifier",      "formatter")
+    graph.add_edge("formatter",     END)
+
+    return graph.compile(checkpointer=checkpointer)
+
+
+async def run_research(query: str, research_id: str, user_id: str = "default") -> dict:
+    """
+    Entry point: run a complete research job.
+    Returns the final state with report.
+    """
+    import time
+
+    # Use SqliteSaver for local dev (switch to AsyncPostgresSaver for production)
+    async with AsyncSqliteSaver.from_conn_string("research_checkpoints.db") as checkpointer:
+        graph = build_research_graph(checkpointer)
+
+        initial_state: ResearchState = {
+            "query": query,
+            "research_id": research_id,
+            "user_id": user_id,
+            "sub_questions": [],
+            "search_strategy": "",
+            "sources": [],
+            "extracted": [],
+            "fetch_errors": [],
+            "draft_sections": [],
+            "draft_summary": "",
+            "verified_sections": [],
+            "removed_claims": [],
+            "verification_score": 0.0,
+            "final_report": "",
+            "final_report_json": {},
+            "citations": [],
+            "status": "planning",
+            "messages": [],
+            "error": None,
+            "duration_seconds": None
+        }
+
+        config = {"configurable": {"thread_id": research_id}}
+
+        start = time.time()
+        final_state = await graph.ainvoke(initial_state, config=config)
+        final_state["duration_seconds"] = round(time.time() - start, 1)
+
+        return final_state
+```
+
+════════════════════════════════════════════════════════════════════════
+STEP 5: API — api/main.py + api/routers/research.py
+════════════════════════════════════════════════════════════════════════
+
+BUILD api/routers/research.py:
+
+```python
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
+from agents.graph import run_research
+from api.database import save_research, get_research, list_research
+import uuid, asyncio
+
+router = APIRouter(prefix="/research", tags=["research"])
+
+class ResearchRequest(BaseModel):
+    query: str
+    user_id: str = "default"
+
+# Track running jobs
+_running_jobs: dict[str, str] = {}  # research_id → status
+
+@router.post("/")
+async def start_research(req: ResearchRequest, background_tasks: BackgroundTasks):
+    """Start a research job. Returns immediately with research_id."""
+    if len(req.query.strip()) < 10:
+        raise HTTPException(400, "Query must be at least 10 characters")
+
+    research_id = str(uuid.uuid4())
+    _running_jobs[research_id] = "planning"
+
+    # Save initial record
+    await save_research(research_id, req.query, req.user_id, status="planning")
+
+    # Run in background
+    background_tasks.add_task(
+        _run_and_save, research_id, req.query, req.user_id
+    )
+
+    return {
+        "research_id": research_id,
+        "status": "planning",
+        "message": "Research started. Poll /research/{id} for progress.",
+        "estimated_minutes": "2-10"
+    }
+
+async def _run_and_save(research_id: str, query: str, user_id: str):
+    try:
+        result = await run_research(query, research_id, user_id)
+        await save_research(
+            research_id, query, user_id,
+            status=result.get("status", "done"),
+            report_md=result.get("final_report", ""),
+            report_json=result.get("final_report_json", {}),
+            verification_score=result.get("verification_score", 0),
+            sources_count=len(result.get("sources", [])),
+            duration=result.get("duration_seconds")
+        )
+        _running_jobs[research_id] = result.get("status", "done")
+    except Exception as e:
+        _running_jobs[research_id] = "failed"
+        await save_research(
+            research_id, query, user_id,
+            status="failed", error=str(e)
+        )
+
+@router.get("/{research_id}")
+async def get_research_status(research_id: str):
+    """Get research status and report when done."""
+    result = await get_research(research_id)
+    if not result:
+        raise HTTPException(404, "Research not found")
+
+    # Add live status if still running
+    if result["status"] in ["planning", "searching", "reading", "synthesizing", "verifying"]:
+        result["status"] = _running_jobs.get(research_id, result["status"])
+
+    return result
+
+@router.get("/")
+async def list_all_research(user_id: str = "default", limit: int = 20):
+    return await list_research(user_id, limit)
+```
+
+════════════════════════════════════════════════════════════════════════
+STEP 6: NEXT.JS DASHBOARD
+════════════════════════════════════════════════════════════════════════
+
+5 key UI requirements:
+
+1. HOME PAGE (/)
+   - Large search input — "What do you want to research?"
+   - Recent searches below (last 5)
+   - Example queries: "Impact of AI on knowledge work 2026",
+     "Comparison of mRNA vaccine platforms", "Venture capital trends Q2 2026"
+   - Submit → POST /research → redirects to /research/{id}
+
+2. RESEARCH PROGRESS PAGE (/research/[id])
+   Phase 1 (status: planning): "Breaking down your question..."
+     Show animated sub-questions appearing one by one
+   Phase 2 (status: searching): "Searching 50+ sources..."
+     Show source URLs appearing as they're found
+   Phase 3 (status: reading): "Reading full documents..."
+     Progress bar: "Reading 23 of 47 sources"
+   Phase 4 (status: synthesizing): "Building your report..."
+     Pulsing animation
+   Phase 5 (status: verifying): "Verifying every claim..."
+     "Checking 127 claims against sources"
+   Phase 6 (status: done): Show full report
+
+   Poll: GET /research/{id} every 3 seconds
+   Auto-scroll to report when status === "done"
+
+3. REPORT DISPLAY
+   - Executive summary in highlighted box
+   - Sections with headings
+   - Inline citations as numbered superscripts [1], [2]
+   - Verification score badge: "92% verified" in green
+   - Sources removed: "14 unverified claims removed"
+   - Citations list at bottom
+   - Export buttons: [Download PDF] [Copy Markdown] [Share Link]
+
+4. HISTORY PAGE (/history)
+   - Table: Query | Date | Sources | Verification % | Duration
+   - Click row → opens report
+
+5. DESIGN: Clean, professional, white-background (like Notion)
+   This product is for consultants and researchers — they want clean,
+   not dark terminal. Accent color: indigo #4F46E5. Font: Inter.
+
+════════════════════════════════════════════════════════════════════════
+STEP 7: HANDLING 50+ SOURCES RELIABLY
+════════════════════════════════════════════════════════════════════════
+
+These are the 5 patterns that make 50+ sources work in production:
+
+1. CONCURRENCY LIMITS everywhere
+   - Web fetching: max 10 concurrent (semaphore)
+   - Groq extraction: max 3 concurrent (rate limits)
+   - NLI verification: max 5 concurrent (CPU bound)
+
+2. GRACEFUL DEGRADATION
+   - If a URL fails to fetch: skip it, continue
+   - If Groq rate-limits: wait 2s with tenacity retry
+   - If NLI check is slow: timeout at 5s per claim
+   - Report is built from whatever succeeded — never fails entirely
+
+3. CONTENT QUALITY FILTER
+   After fetching, filter out:
+   - Pages with < 200 words (paywalled, redirect, error pages)
+   - Pages where readability extraction returned < 100 chars
+   - Duplicate content (hash dedup)
+
+4. CONTEXT WINDOW MANAGEMENT
+   - Each source: max 4000 chars to Groq for extraction
+   - Synthesis: max 28000 chars total (leave room for prompt + output)
+   - Priority order: highest relevance_score sources get context budget first
+
+5. CHECKPOINT AFTER EACH STAGE
+   LangGraph SqliteSaver checkpoints after every node.
+   If the process crashes at "reading" — resume from there, not start.
+   Never lose 5 minutes of work.
+
+════════════════════════════════════════════════════════════════════════
+STEP 8: TEST
+════════════════════════════════════════════════════════════════════════
+
+BUILD scripts/test_agent.py:
+
+```python
+"""
+End-to-end test. Run this after all agents are built.
+"""
+import asyncio, os
+from dotenv import load_dotenv
+load_dotenv()
+
+from agents.graph import run_research
+
+TEST_QUERY = "What are the main challenges and solutions for AI agent deployment in enterprise environments in 2026?"
+
+async def test():
+    print(f"\n🔬 Testing Deep Research Agent")
+    print(f"Query: {TEST_QUERY}\n")
+
+    result = await run_research(
+        query=TEST_QUERY,
+        research_id="test_001",
+        user_id="test"
+    )
+
+    print(f"\n{'='*60}")
+    print(f"✅ STATUS: {result['status']}")
+    print(f"⏱  Duration: {result.get('duration_seconds', 'N/A')}s")
+    print(f"📚 Sources found: {len(result.get('sources', []))}")
+    print(f"📖 Sources read: {len([e for e in result.get('extracted', []) if e['fetch_success']])}")
+    print(f"🔍 Verification score: {result.get('verification_score', 0):.0%}")
+    print(f"🗑  Claims removed: {len(result.get('removed_claims', []))}")
+    print(f"\n📄 REPORT PREVIEW:\n")
+    print(result.get('final_report', '')[:1000])
+
+    return result
+
+asyncio.run(test())
+```
+
+EXPECTED OUTPUT:
+  ✅ STATUS: done
+  ⏱  Duration: 180-360s
+  📚 Sources found: 47
+  📖 Sources read: 38
+  🔍 Verification score: 87%
+  🗑  Claims removed: 18
+
+════════════════════════════════════════════════════════════════════════
+LAUNCH STRATEGY — HOW TO GET FIRST 20 PAYING CUSTOMERS
+════════════════════════════════════════════════════════════════════════
+
+WEEK 1: GitHub + first HackerNews post
+  Push to GitHub with a compelling README.
+  README must include:
+    - GIF: submit query → watch 6 agents run → final report appears
+    - Show the verification score badge prominently
+    - "92% of claims verified against their sources" is the hook
+  
+  HackerNews: "Show HN: Built a deep research agent that verifies 
+  every claim against its source (NLI-based, local model)"
+  
+  The verification angle is what makes this stand out vs existing tools.
+  Researchers care about accuracy, not just speed.
+
+WEEK 2: Target specific professional communities
+  
+  LinkedIn posts targeting:
+  - "Market research analysts" → show a competitive analysis example
+  - "VC associates" → show a market sizing research example
+  - "Management consultants" → show an industry analysis example
+  
+  Each post format:
+  "I asked my AI research agent: [interesting question]
+   It read 47 sources in 4 minutes.
+   Here's what it found: [share the actual report as PDF]
+   Verification score: 91%"
+  
+  Sharing real reports is better than any demo video.
+
+WEEK 3: Free 3-report trial, no credit card
+  Landing page: "Try 3 free research reports"
+  After 3 reports: Stripe paywall at $49/mo
+  
+  Why this converts:
+  - Users get real value before paying
+  - After one good report, $49/mo feels cheap
+  - "I got this report in 6 minutes vs 2 days" is the conversion moment
+
+PRICING:
+  Personal: $49/mo — 10 reports/month
+  Professional: $149/mo — 50 reports, PDF export, team sharing
+  Enterprise: $499/mo — unlimited, API access, custom sources
+
+REVENUE MATH:
+  20 customers × $49 = $980 MRR (week 8)
+  50 customers × $49 + 10 × $149 = $3,940 MRR (month 3)
+  100 × $49 + 30 × $149 + 5 × $499 = $11,365 MRR (month 5)
+
+════════════════════════════════════════════════════════════════════════
+FIRST COMMANDS
+════════════════════════════════════════════════════════════════════════
+
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# Add: GROQ_API_KEY, TAVILY_API_KEY
+
+# Test the NLI verifier first (loads the model)
+python -c "
+from tools.nli_scorer import verify_claim
+result = verify_claim(
+    'The Eiffel Tower is located in Paris, France.',
+    'The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France.'
+)
+print(result)
+# Expected: {label: entailment, confidence: ~0.95, verified: True}
+"
+
+# Run full end-to-end test
+python scripts/test_agent.py
+
+# Start API
+uvicorn api.main:app --reload --port 8000
+
+# Start dashboard
+cd dashboard && npm install && npm run dev
+
+════════════════════════════════════════════════════════════════════════
+END OF DEEP RESEARCH AGENT PROMPT
+════════════════════════════════════════════════════════════════════════
+
+Built by Muhammad Muhaddas
+The research tool that verifies what it tells you.

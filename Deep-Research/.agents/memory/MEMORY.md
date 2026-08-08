@@ -1,0 +1,1 @@
+- [OpenAPI numeric fields](openapi-numeric-fields.md) — use numeric schemas for count and percentage fields with this workspace's Zod codegen setup.

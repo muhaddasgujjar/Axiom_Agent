@@ -1,0 +1,51 @@
+You are an expert frontend engineer and UI/UX designer. I need you to build the frontend for an "AI Deep Research Agent", a PhD-level autonomous research tool. 
+
+Build this using Next.js (App Router), React, TypeScript, Tailwind CSS, and Lucide React for icons.
+
+### 1. Design System & Global Styles
+*   **Vibe:** Professional, clean, and minimalist (similar to Notion or Linear). Designed for consultants, VCs, and analysts.
+*   **Theme:** Light mode default with a clean white background. 
+*   **Typography:** 'Inter' font family. Clean typography with clear visual hierarchy for long-form reading.
+*   **Colors:** Primary text is dark slate/gray. Use Indigo (`#4F46E5`) strictly as the primary accent color for primary buttons, active states, and highlights. Use a distinct green for "Verification" badges to build trust.
+*   **Business Logic Constraint:** Do not include any public pricing details, pricing pages, or subscription tiers anywhere in the UI. If a user needs access, they should just see an option to book or request access without revealing prices.
+*   **Layout Constraint:** Do not use table formats for data display anywhere in the application. Use card-based layouts or flexbox lists instead.
+
+### 2. Core Pages & UI Components
+
+#### A. Home Page (`/`)
+*   **Hero Section:** A bold, simple headline like "Deep Research. Verified." followed by a large, prominent search input bar with a subtle shadow. 
+*   **Search Input:** Should have a "Research" button (Indigo) and an icon.
+*   **Suggestions:** Below the search bar, show 3 clickable example queries styled as subtle pill-shaped buttons (e.g., "Impact of AI on knowledge work 2026", "Comparison of mRNA vaccine platforms").
+*   **Recent Searches:** A section below showing the user's most recent research queries as clean, clickable cards.
+
+#### B. Research Progress View (`/research/[id]` - Loading State)
+*   When a user submits a query, they are routed here while the backend works.
+*   Create a visually engaging vertical stepper or progress list showing the 6 agent phases:
+    1. Planning (Breaking down your question...)
+    2. Source Hunting (Searching 50+ sources...)
+    3. Deep Reading (Reading full documents...)
+    4. Synthesizing (Building your report...)
+    5. Verifying (Checking claims against sources...)
+    6. Formatting (Finalizing report...)
+*   **Animation:** Use pulsing animations or spinners for the active step. Show a percentage or fraction (e.g., "Reading 23 of 47 sources") if possible.
+
+#### C. Final Report View (`/research/[id]` - Completed State)
+*   Once the API returns `status: done`, transition smoothly to the final report.
+*   **Header:** The original query as the title, followed by a prominent Verification Score Badge (e.g., "92% Verified" in green) and the number of sources analyzed.
+*   **Executive Summary:** Placed in a highlighted, slightly tinted bounding box at the top.
+*   **Body Content:** Render Markdown text cleanly with proper heading sizes (H2, H3), bullet points, and readable line heights.
+*   **Inline Citations:** Style citations like `[1]`, `[2]` as clickable superscript links that scroll to the references section.
+*   **Removed Claims Notice:** A small, subtle warning box indicating if any claims were removed due to hallucination/failed verification (e.g., "14 unverified claims removed by AI Verifier").
+*   **References Section:** A numbered list at the bottom showing the source title, URL, and access date.
+*   **Action Bar:** Include icon buttons to "Download PDF", "Copy Markdown", and "Share Link".
+
+#### D. History Page (`/history`)
+*   A dashboard viewing past research.
+*   **Layout:** Display the history using a responsive grid of cards or a clean vertical flexbox list (Remember: strictly no table formats).
+*   **Card Contents:** Each card should show the research query, date, number of sources, the verification percentage, and the duration it took to generate.
+
+### 3. State Management & API Mocking
+*   Implement a mock polling mechanism for the `/research/[id]` route that simulates the state changing from "planning" -> "searching" -> "reading" -> "synthesizing" -> "verifying" -> "done" every few seconds so I can see the UI animations.
+*   Create a mock JSON object representing the final output report to render the completed state.
+
+Please generate the complete codebase for these UI requirements, focusing on high-quality component structure and Tailwind utility classes.

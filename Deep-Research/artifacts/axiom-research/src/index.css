@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: hsl(var(--background)); --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border)); --color-input: hsl(var(--input)); --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card)); --color-card-foreground: hsl(var(--card-foreground)); --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover)); --color-popover-foreground: hsl(var(--popover-foreground)); --color-popover-border: hsl(var(--popover-border));
+  --color-primary: hsl(var(--primary)); --color-primary-foreground: hsl(var(--primary-foreground)); --color-primary-border: var(--primary-border);
+  --color-secondary: hsl(var(--secondary)); --color-secondary-foreground: hsl(var(--secondary-foreground)); --color-secondary-border: var(--secondary-border);
+  --color-muted: hsl(var(--muted)); --color-muted-foreground: hsl(var(--muted-foreground)); --color-muted-border: var(--muted-border);
+  --color-accent: hsl(var(--accent)); --color-accent-foreground: hsl(var(--accent-foreground)); --color-accent-border: var(--accent-border);
+  --color-destructive: hsl(var(--destructive)); --color-destructive-foreground: hsl(var(--destructive-foreground)); --color-destructive-border: var(--destructive-border);
+  --font-sans: var(--app-font-sans); --font-serif: var(--app-font-serif); --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
+}
+:root {
+  --background: 48 20% 95%; --foreground: 166 23% 19%; --border: 72 12% 84%; --input: 72 12% 84%;
+  --card: 45 33% 98%; --card-foreground: 166 23% 19%; --card-border: 72 12% 84%;
+  --popover: 45 33% 98%; --popover-foreground: 166 23% 19%; --popover-border: 72 12% 84%;
+  --primary: 174 41% 22%; --primary-foreground: 48 20% 96%; --secondary: 162 24% 88%; --secondary-foreground: 174 41% 22%;
+  --muted: 72 16% 91%; --muted-foreground: 155 9% 47%; --accent: 37 48% 78%; --accent-foreground: 28 37% 25%;
+  --destructive: 5 58% 44%; --destructive-foreground: 48 20% 96%; --ring: 174 41% 22%;
+  --app-font-sans: 'DM Sans', sans-serif; --app-font-serif: 'Instrument Serif', Georgia, serif; --app-font-mono: 'DM Mono', monospace;
+  --radius: .75rem; --primary-border: hsl(var(--primary)); --secondary-border: hsl(var(--secondary)); --muted-border: hsl(var(--muted)); --accent-border: hsl(var(--accent)); --destructive-border: hsl(var(--destructive));
+  --sidebar: 72 16% 92%; --sidebar-foreground: 166 23% 19%; --sidebar-border: 72 12% 84%; --sidebar-primary: 174 41% 22%; --sidebar-primary-foreground: 48 20% 96%; --sidebar-accent: 162 24% 88%; --sidebar-accent-foreground: 174 41% 22%; --sidebar-ring: 174 41% 22%;
+}
+.dark { --background: 174 27% 11%; --foreground: 48 20% 94%; --card: 174 24% 15%; --card-foreground: 48 20% 94%; --border: 174 16% 25%; --input: 174 16% 25%; --primary: 162 31% 61%; --primary-foreground: 174 27% 11%; --secondary: 174 21% 23%; --secondary-foreground: 48 20% 94%; --muted: 174 21% 19%; --muted-foreground: 162 10% 67%; --accent: 37 43% 61%; --accent-foreground: 174 27% 11%; --popover: 174 24% 15%; --popover-foreground: 48 20% 94%; --ring: 162 31% 61%; --destructive: 5 58% 55%; --destructive-foreground: 48 20% 94%; --sidebar: 174 29% 13%; --sidebar-foreground: 48 20% 94%; --sidebar-border: 174 16% 25%; --sidebar-primary: 162 31% 61%; --sidebar-primary-foreground: 174 27% 11%; --sidebar-accent: 174 21% 23%; --sidebar-accent-foreground: 48 20% 94%; --sidebar-ring: 162 31% 61%; }
+@layer base { * { @apply border-border; } body { @apply font-sans antialiased bg-background text-foreground; } button, a, input, textarea { -webkit-tap-highlight-color: transparent; } }
+@layer utilities { .font-serif { font-family: var(--app-font-serif); } .font-mono { font-family: var(--app-font-mono); } }
+* { scrollbar-width: thin; scrollbar-color: #b8c7c0 transparent; }

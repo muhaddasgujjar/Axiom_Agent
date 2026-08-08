@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Databases & checkpoints
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / pnpm (Deep-Research workspace handles most of these; belt-and-suspenders)
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Replit
+.replit-artifact/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

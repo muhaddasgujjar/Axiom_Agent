@@ -1,0 +1,15 @@
+langgraph
+langgraph-checkpoint-sqlite
+aiosqlite
+langchain-groq
+tavily-python
+httpx
+beautifulsoup4
+readability-lxml
+sentence-transformers
+torch
+fastapi
+uvicorn
+sqlalchemy
+tenacity
+python-dotenv
