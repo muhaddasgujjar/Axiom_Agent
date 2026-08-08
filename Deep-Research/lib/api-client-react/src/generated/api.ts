@@ -22,7 +22,6 @@ import type {
 import type {
   HealthStatus,
   Research,
-  ResearchInput,
   WorkspaceSummary
 } from './api.schemas';
 
@@ -208,78 +207,6 @@ export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>
 
 
 
-
-export const getCreateResearchUrl = () => {
-
-
-
-
-  return `/api/research`
-}
-
-/**
- * Creates a research job and starts its staged workspace simulation
- * @summary Start a research job
- */
-export const createResearch = async (researchInput: ResearchInput, options?: Parameters<typeof customFetch>[1]): Promise<Research> => {
-
-  return customFetch<Research>(getCreateResearchUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(researchInput)
-  }
-);}
-
-
-
-
-
-export const getCreateResearchMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createResearch>>, TError,{data: BodyType<ResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createResearch>>, TError,{data: BodyType<ResearchInput>}, TContext> => {
-
-const mutationKey = ['createResearch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createResearch>>, {data: BodyType<ResearchInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createResearch(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateResearchMutationResult = NonNullable<Awaited<ReturnType<typeof createResearch>>>
-    export type CreateResearchMutationBody = BodyType<ResearchInput>
-    export type CreateResearchMutationError = ErrorType<void>
-
-    /**
- * @summary Start a research job
- */
-export const useCreateResearch = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createResearch>>, TError,{data: BodyType<ResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createResearch>>,
-        TError,
-        {data: BodyType<ResearchInput>},
-        TContext
-      > => {
-      return useMutation(getCreateResearchMutationOptions(options));
-    }
 
 export const getGetResearchUrl = (id: string,) => {
 

@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, researchTable, type ResearchAgent, type ResearchRecent, type ResearchSource } from "@workspace/db";
 import {
@@ -316,7 +316,7 @@ router.get("/research", async (req, res): Promise<void> => {
   res.json(ListResearchResponse.parse(result));
 });
 
-async function startResearchProxy(req: Parameters<Parameters<typeof router.get>[1]>[0], res: Parameters<Parameters<typeof router.get>[1]>[1]): Promise<void> {
+async function startResearchProxy(req: Request, res: Response): Promise<void> {
   const parsed = CreateResearchBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ errors: parsed.error.message }, "Invalid research request");
