@@ -4,13 +4,13 @@ import os
 import re
 from typing import Any, Dict, List
 
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 
 from agents.state import ResearchState
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "llama-3.3-70b-versatile"
+MODEL_NAME = "gpt-4o-mini"
 MIN_SUB_QUESTIONS = 8
 MAX_SUB_QUESTIONS = 12
 
@@ -31,11 +31,11 @@ Research query:
 """
 
 
-def _get_llm() -> ChatGroq:
-    api_key = os.environ.get("GROQ_API_KEY")
+def _get_llm() -> ChatOpenAI:
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY is not set in the environment.")
-    return ChatGroq(model=MODEL_NAME, api_key=api_key, temperature=0.2, max_tokens=4096)
+        raise RuntimeError("OPENAI_API_KEY is not set in the environment.")
+    return ChatOpenAI(model=MODEL_NAME, api_key=api_key, temperature=0.2, max_tokens=4096)
 
 
 def _strip_json(text: str) -> str:

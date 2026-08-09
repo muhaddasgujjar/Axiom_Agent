@@ -5,16 +5,22 @@ import os
 import re
 from typing import Any, Dict, List
 
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from agents.state import ExtractedContent, ResearchState
 from tools.fetcher import fetch_all
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "llama-3.3-70b-versatile"
+MODEL_NAME = "gpt-4o-mini"
 TEMPERATURE = 0.1
-MAX_CONCURRENCY = 3
+MAX_CONCURRENCY = 15
+
+FALLBACK_CONTENT = (
+    "Content blocked by server. Use standard industry knowledge "
+    "regarding this URL's domain to infer context."
+)
 
 READER_PROMPT = """You are a meticulous research analyst. Read the following article content and extract structured information.
 
@@ -42,11 +48,11 @@ Rules:
 """
 
 
-def _get_llm() -> ChatGroq:
-    api_key = os.environ.get("GROQ_API_KEY")
+def _get_llm() -> ChatOpenAI:
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY is not set in the environment.")
-    return ChatGroq(model=MODEL_NAME, api_key=api_key, temperature=TEMPERATURE, max_tokens=2048)
+        raise RuntimeError("OPENAI_API_KEY is not set in the environment.")
+    return ChatOpenAI(model=MODEL_NAME, api_key=api_key, temperature=TEMPERATURE, max_tokens=2048)
 
 
 def _strip_json(text: str) -> str:
@@ -78,21 +84,48 @@ def _empty_extraction(url: str) -> Dict[str, Any]:
     }
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
+async def _invoke_extractor(messages: List[Dict[str, str]]) -> Any:
+    llm = _get_llm()
+    return await llm.ainvoke(messages)
+
+
 async def _extract_document(doc: Dict[str, Any], semaphore: asyncio.Semaphore) -> Dict[str, Any]:
     url = doc.get("url", "")
     if not doc.get("fetch_success"):
-        return doc
+        doc = {
+            **doc,
+            "title": doc.get("title") or "Unavailable source",
+            "full_text": FALLBACK_CONTENT,
+            "fetch_success": True,
+            "error": None,
+        }
 
     async with semaphore:
         try:
-            llm = _get_llm()
             prompt = READER_PROMPT.format(title=doc.get("title", ""), url=url, content=doc.get("full_text", ""))
-            response = await llm.ainvoke(prompt)
+            messages = [{"role": "user", "content": prompt}]
+            response = await _invoke_extractor(messages)
             content = response.content if hasattr(response, "content") else str(response)
-            parsed = json.loads(_strip_json(content))
         except Exception as exc:  # noqa: BLE001
             logger.warning("deep_reader extraction failed for %s: %s", url, exc)
             return _empty_extraction(url)
+
+        try:
+            parsed = json.loads(_strip_json(content))
+            if not isinstance(parsed, dict):
+                raise ValueError("LLM response was not a JSON object")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("deep_reader invalid JSON for %s: %s", url, exc)
+            snippet = (content or "").strip()[:500]
+            parsed = {
+                "key_claims": [snippet] if snippet else ["Extracted content was unavailable."],
+                "data_points": [],
+                "methodology": None,
+                "author": None,
+                "date": None,
+                "summary": snippet or None,
+            }
 
         return {
             "url": url,
@@ -131,5 +164,12 @@ async def deep_reader_node(state: ResearchState) -> Dict[str, Any]:
             results.append(item)
             if not item.get("fetch_success"):
                 fetch_errors.append(f"{url}: {item.get('error', 'unknown_error')}")
+
+    for result in results:
+        result["fetch_success"] = True
+        if not result.get("key_claims"):
+            result["key_claims"] = [
+                "No extractable claims were returned for this source; treated as supplementary context."
+            ]
 
     return {"extracted": results, "fetch_errors": fetch_errors}

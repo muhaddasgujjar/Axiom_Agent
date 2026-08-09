@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 from typing import Any, Dict, List
@@ -14,8 +15,59 @@ def _title_for_url(url: str, extracted: List[Dict[str, Any]]) -> str:
     return url
 
 
+def _render_content(content: Any) -> str:
+    items: List[str] = []
+
+    if isinstance(content, list):
+        items = [str(item).strip() for item in content if str(item).strip()]
+    elif isinstance(content, str):
+        candidate = content.strip()
+        if candidate.startswith("[") and candidate.endswith("]"):
+            try:
+                parsed = ast.literal_eval(candidate)
+            except (ValueError, SyntaxError):
+                parsed = None
+            if isinstance(parsed, list):
+                items = [str(item).strip() for item in parsed if str(item).strip()]
+    else:
+        return str(content)
+
+    if not items:
+        return content if isinstance(content, str) else ""
+
+    return "\n".join(f"- {item}" for item in items)
+
+
+def _normalize_sections(state: ResearchState) -> List[Dict[str, Any]]:
+    raw = state.get("verified_sections") or state.get("draft_sections") or []
+    sections: List[Dict[str, Any]] = []
+
+    if isinstance(raw, dict):
+        for title, content in raw.items():
+            rendered = _render_content(content)
+            if rendered.strip():
+                sections.append({"title": title, "content": rendered})
+        return sections
+
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        title = item.get("title")
+        content = item.get("content")
+        if isinstance(title, str) and isinstance(content, (str, list)):
+            rendered = _render_content(content)
+            if rendered.strip():
+                sections.append({"title": title, "content": rendered})
+            continue
+        for key, value in item.items():
+            rendered = _render_content(value)
+            if rendered.strip():
+                sections.append({"title": key, "content": rendered})
+    return sections
+
+
 def _build_citations(
-    verified_sections: List[Dict[str, Any]],
+    sections: List[Dict[str, Any]],
     extracted: List[Dict[str, Any]],
     existing_order: List[str],
 ) -> List[str]:
@@ -23,7 +75,7 @@ def _build_citations(
     for url in existing_order:
         if url and url not in ordered:
             ordered.append(url)
-    for section in verified_sections:
+    for section in sections:
         for url in section.get("sources_used", []) or []:
             if url and url not in ordered:
                 ordered.append(url)
@@ -35,45 +87,64 @@ def _build_citations(
     return citations
 
 
+SECTION_TITLES = [
+    "Executive Summary & Key Takeaways",
+    "Architectural Comparison Matrix",
+    "Deep Technical Analysis",
+    "Production Implementation Playbook",
+    "System Limitations & Risks",
+]
+
+
 def formatter_node(state: ResearchState) -> Dict[str, Any]:
     query = state.get("query", "")
-    verified_sections = state.get("verified_sections", []) or []
+    sections = _normalize_sections(state)
     draft_summary = state.get("draft_summary", "")
     extracted = state.get("extracted", []) or []
     existing_citations = state.get("citations", []) or []
     verification_score = state.get("verification_score", 0.0)
 
-    lines: List[str] = []
-    lines.append(f"# Deep Research Report: {query}")
-    lines.append("")
-    if draft_summary:
-        lines.append("## Executive Summary")
-        lines.append("")
-        lines.append(draft_summary)
-        lines.append("")
+    content_by_title = {
+        section.get("title", ""): section.get("content", "")
+        for section in sections
+        if section.get("title") and section.get("content")
+    }
 
-    for section in verified_sections:
-        title = section.get("title", "")
-        content = section.get("content", "")
-        if not title or not content:
+    lines: List[str] = []
+    lines.append(f"# Enterprise Research Brief: {query}")
+    lines.append("")
+
+    emitted = False
+    for title in SECTION_TITLES:
+        content = _render_content(content_by_title.get(title, ""))
+        if not content.strip():
             continue
+        if emitted:
+            lines.append("---")
+            lines.append("")
         lines.append(f"## {title}")
         lines.append("")
         lines.append(content)
         lines.append("")
+        emitted = True
 
-    if verified_sections:
-        lines.append("## Verification")
+    for section in sections:
+        title = section.get("title", "")
+        content = _render_content(section.get("content", ""))
+        if not title or title in SECTION_TITLES or not content.strip():
+            continue
+        if emitted:
+            lines.append("---")
+            lines.append("")
+        lines.append(f"## {title}")
         lines.append("")
-        lines.append(
-            f"Overall verification score: {verification_score} "
-            f"(fraction of claims that survived the NLI verification pass)."
-        )
+        lines.append(content)
         lines.append("")
+        emitted = True
 
-    lines.append("## Citations")
+    lines.append("## References")
     lines.append("")
-    citations = _build_citations(verified_sections, extracted, existing_citations)
+    citations = _build_citations(sections, extracted, existing_citations)
     for citation in citations:
         lines.append(f"- {citation}")
 
@@ -82,7 +153,7 @@ def formatter_node(state: ResearchState) -> Dict[str, Any]:
     final_report_json = {
         "query": query,
         "summary": draft_summary,
-        "sections": verified_sections,
+        "sections": sections,
         "verification_score": verification_score,
         "citations": citations,
     }

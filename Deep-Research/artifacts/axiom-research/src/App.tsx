@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowUpRight, BookOpen, BrainCircuit, Check, ChevronRight, CircleHelp,
   Clock3, FileCheck2, FileSearch, Filter, FlaskConical, Focus, GitBranch, Globe2,
   Layers3, Library, Link2, LockKeyhole, Menu, PanelLeft, Plus, Search, ShieldCheck,
-  Sparkles, Target, X, Pause, Play, RefreshCw, AlertCircle,
+  Sparkles, Target, X, Pause, Play, RefreshCw, AlertCircle, Download,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
@@ -126,7 +126,8 @@ function ResearchHeader({ item }: { item: Research }) {
   const paused = item.status === 'paused';
   const toggle = () => pause.mutate({ id: item.id }, { onSuccess: data => queryClient.setQueryData(getGetResearchQueryKey(item.id), data) });
   const share = () => { navigator.clipboard?.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1600); };
-  return <div className="mb-8 flex flex-col justify-between gap-5 xl:flex-row xl:items-end"><div><div className="mb-3 flex flex-wrap items-center gap-2"><span data-testid="status-research" className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-[.15em] ${item.status === 'done' ? 'bg-[#dce8e4] text-[#3f756b]' : paused ? 'bg-[#f1e8d8] text-[#8a6a4a]' : 'bg-[#dceae5] text-[#3f756b]'}`}>{item.status === 'done' ? 'Research complete' : paused ? 'Research paused' : `Research ${item.status}`}</span><span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[.12em] text-[#8a918c]"><Clock3 size={12} /> {item.elapsedMinutes} min elapsed</span></div><h1 data-testid="text-research-title" className="max-w-[760px] font-serif text-[clamp(32px,4vw,52px)] leading-[1.03] tracking-[-.045em] text-[#24413d]">{item.query}</h1><p className="mt-4 max-w-[700px] text-[13px] leading-[1.65] text-[#65706b]">{item.summary || 'Axiom is mapping the evidence, testing claims, and building a source-backed answer.'}</p></div><div className="flex shrink-0 items-center gap-2"><Button data-testid="button-pause-research" onClick={toggle} disabled={pause.isPending || item.status === 'done'}>{paused ? <span className="flex items-center gap-2"><Play size={14} /> Resume research</span> : <span className="flex items-center gap-2"><Pause size={14} /> Pause research</span>}</Button><Button data-testid="button-share-research" primary onClick={share}>{copied ? <span className="flex items-center gap-2"><Check size={14} /> Link copied</span> : <span className="flex items-center gap-2"><ArrowUpRight size={14} /> Share workspace</span>}</Button></div></div>;
+  const downloadPDF = () => window.print();
+  return <div className="mb-8 flex flex-col justify-between gap-5 xl:flex-row xl:items-end"><div><div className="mb-3 flex flex-wrap items-center gap-2"><span data-testid="status-research" className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-[.15em] ${item.status === 'done' ? 'bg-[#dce8e4] text-[#3f756b]' : paused ? 'bg-[#f1e8d8] text-[#8a6a4a]' : 'bg-[#dceae5] text-[#3f756b]'}`}>{item.status === 'done' ? 'Research complete' : paused ? 'Research paused' : `Research ${item.status}`}</span><span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[.12em] text-[#8a918c]"><Clock3 size={12} /> {item.elapsedMinutes} min elapsed</span></div><h1 data-testid="text-research-title" className="max-w-[760px] font-serif text-[clamp(32px,4vw,52px)] leading-[1.03] tracking-[-.045em] text-[#24413d]">{item.query}</h1><p className="mt-4 max-w-[700px] text-[13px] leading-[1.65] text-[#65706b]">{item.summary || 'Axiom is mapping the evidence, testing claims, and building a source-backed answer.'}</p></div><div className="flex shrink-0 items-center gap-2">{item.status === 'done' && <Button data-testid="button-download-pdf" onClick={downloadPDF}><span className="flex items-center gap-2"><Download size={14} /> Download PDF</span></Button>}<Button data-testid="button-pause-research" onClick={toggle} disabled={pause.isPending || item.status === 'done'}>{paused ? <span className="flex items-center gap-2"><Play size={14} /> Resume research</span> : <span className="flex items-center gap-2"><Pause size={14} /> Pause research</span>}</Button><Button data-testid="button-share-research" primary onClick={share}>{copied ? <span className="flex items-center gap-2"><Check size={14} /> Link copied</span> : <span className="flex items-center gap-2"><ArrowUpRight size={14} /> Share workspace</span>}</Button></div></div>;
 }
 
 function Pipeline({ item }: { item: Research }) { return <section className="rounded-2xl border border-[#d7dbd3] bg-[#faf9f4] p-5 shadow-[0_8px_30px_rgba(38,58,53,.035)] sm:p-6"><div className="mb-5 flex items-center justify-between"><div><Eyebrow>Agent pipeline</Eyebrow><p className="mt-1.5 text-[13px] font-medium text-[#344b46]">Six specialists, one defensible answer</p></div><span className="font-mono text-[9px] text-[#87918a]">{item.progress}% complete</span></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{item.agents.map((agent, index) => <AgentCard key={agent.name} agent={agent} index={index} />)}</div><div className="mt-5 flex items-center gap-3 border-t border-[#e4e5de] pt-4"><div className="h-1.5 flex-1 rounded-full bg-[#e3e8e2]"><div className="h-full rounded-full bg-[#4f8379] transition-all duration-700" style={{ width: `${item.progress}%` }} /></div><span className="font-mono text-[10px] text-[#55716b]">{item.progress}% complete</span></div></section>; }
@@ -143,23 +144,110 @@ function renderInline(text: string): ReactNode[] {
     return <span key={i}>{part}</span>;
   });
 }
+function normalizeLegacyArrays(text: string): string {
+  return text.replace(/(?:^|\n)[ \t]*\[[^\]]*\][ \t]*(?=\n|$)/g, match => {
+    const items = match.trim().match(/(?:'[^']*'|"[^"]*")/g) ?? [];
+    if (items.length < 1) return match;
+    const bullets = items
+      .map(s => s.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\'))
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => `- ${s}`)
+      .join('\n');
+    return `\n${bullets}\n`;
+  });
+}
 function MarkdownReport({ text }: { text: string }) {
-  const lines = text.split(/\r?\n/);
+  const lines = normalizeLegacyArrays(text).split(/\r?\n/);
   const blocks: ReactNode[] = [];
   let para: string[] = [];
   let list: ReactNode[] = [];
   let listIds: Array<string | undefined> = [];
   let key = 0;
-  const flushPara = () => { if (para.length) { blocks.push(<p key={`p${key++}`} className="text-[13px] leading-[1.75] text-[#52615b]">{renderInline(para.join(' '))}</p>); para = []; } };
-  const flushList = () => { if (list.length) { blocks.push(<ul key={`l${key++}`} className="space-y-1.5">{list.map((li, i) => <li key={i} id={listIds[i]} className="text-[13px] leading-[1.7] text-[#52615b]">{li}</li>)}</ul>); list = []; listIds = []; } };
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed) { flushPara(); flushList(); return; }
-    if (/^#{1,3} /.test(trimmed)) {
+  const flushPara = () => { if (para.length) { blocks.push(<p key={`p${key++}`}>{renderInline(para.join(' '))}</p>); para = []; } };
+  const flushList = () => { if (list.length) { blocks.push(<ul key={`l${key++}`}>{list.map((li, i) => <li key={i} id={listIds[i]}>{li}</li>)}</ul>); list = []; listIds = []; } };
+  const splitRow = (row: string): string[] => {
+    let r = row.trim();
+    if (r.startsWith('|')) r = r.slice(1);
+    if (r.endsWith('|')) r = r.slice(0, -1);
+    return r.split('|').map(c => c.trim());
+  };
+  const padCells = (row: string[], count: number): string[] => {
+    const out = row.slice(0, count);
+    while (out.length < count) out.push('');
+    return out;
+  };
+  const isSeparator = (line: string): boolean => {
+    const t = line.trim();
+    if (!t.includes('|')) return false;
+    const core = t.replace(/^\|/, '').replace(/\|$/, '');
+    return core.split('|').every(seg => /^:?-{3,}:?$/.test(seg.trim()));
+  };
+  const renderTable = (start: number): number => {
+    const head = splitRow(lines[start]);
+    const colCount = head.length;
+    let i = start + 1;
+    if (i < lines.length && isSeparator(lines[i])) i++;
+    const body: string[][] = [];
+    let current: string[] | null = null;
+    let blankPending = false;
+    while (i < lines.length) {
+      const t = lines[i].trim();
+      if (!t) { blankPending = true; i++; continue; }
+      if (t.startsWith('|')) {
+        if (current) { body.push(padCells(current, colCount)); current = null; }
+        current = splitRow(t);
+        blankPending = false;
+        i++;
+        continue;
+      }
+      if (current && !blankPending) {
+        const segs = t.split('|').map(s => s.trim());
+        current[current.length - 1] += ' ' + segs[0];
+        for (let k = 1; k < segs.length; k++) current.push(segs[k]);
+        i++;
+        continue;
+      }
+      break;
+    }
+    if (current) body.push(padCells(current, colCount));
+    flushPara(); flushList();
+    blocks.push(
+      <div key={`t${key++}`} className="my-4 overflow-x-auto rounded-xl border border-[#e1e3db]">
+        <table className="w-full border-collapse text-[12.5px] leading-snug">
+          <thead>
+            <tr>{head.map((c, j) => <th key={j} className="border-b-2 border-[#cdd4cc] bg-[#f0f1eb] px-3 py-2 text-left font-semibold text-[#214e4a]">{renderInline(c)}</th>)}</tr>
+          </thead>
+          <tbody>
+            {body.map((r, ri) => <tr key={ri} className="odd:bg-[#f7f6f1]">{r.map((c, j) => <td key={j} className="border-b border-[#e4e5de] px-3 py-2 text-[#52615b]">{renderInline(c)}</td>)}</tr>)}
+          </tbody>
+        </table>
+      </div>
+    );
+    return i;
+  };
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) { flushPara(); flushList(); i++; continue; }
+    if (trimmed.includes('|') && i + 1 < lines.length && lines[i + 1].includes('|')) {
+      i = renderTable(i);
+      continue;
+    }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       flushPara(); flushList();
-      const content = trimmed.replace(/^#+\s*/, '');
-      blocks.push(<h2 key={`h${key++}`} className={trimmed.startsWith('# ') ? 'mb-3 mt-2 font-serif text-[26px] tracking-[-.03em] text-[#29534a]' : 'mb-2 mt-6 font-serif text-[19px] tracking-[-.02em] text-[#29534a]'}>{renderInline(content)}</h2>);
-      return;
+      blocks.push(<hr key={`r${key++}`} className="my-6 border-t border-[#d8d8ce]" />);
+      i++;
+      continue;
+    }
+    const heading = /^(#{1,3}) /.exec(trimmed);
+    if (heading) {
+      flushPara(); flushList();
+      const content = trimmed.slice(heading[0].length);
+      const Tag: 'h1' | 'h2' | 'h3' = heading[1].length === 1 ? 'h1' : heading[1].length === 2 ? 'h2' : 'h3';
+      blocks.push(<Tag key={`h${key++}`} className="font-serif tracking-[-.02em]">{renderInline(content)}</Tag>);
+      i++;
+      continue;
     }
     if (/^[-*] /.test(trimmed)) {
       flushPara();
@@ -167,21 +255,24 @@ function MarkdownReport({ text }: { text: string }) {
       const cite = /^\[(\d+)\]/.exec(content);
       listIds.push(cite ? `citation-${cite[1]}` : undefined);
       list.push(renderInline(content));
-      return;
+      i++;
+      continue;
     }
     if (/^\d+\. /.test(trimmed)) {
       flushPara(); flushList();
-      blocks.push(<p key={`n${key++}`} className="text-[13px] leading-[1.75] text-[#52615b]">{renderInline(trimmed)}</p>);
-      return;
+      blocks.push(<p key={`n${key++}`}>{renderInline(trimmed)}</p>);
+      i++;
+      continue;
     }
     para.push(trimmed);
-  });
+    i++;
+  }
   flushPara(); flushList();
-  return <div className="space-y-1">{blocks}</div>;
+  return <>{blocks}</>;
 }
 function Report({ item }: { item: Research }) {
   const body = item.report || item.summary;
-  return <section data-testid="panel-completed-report" className="rounded-2xl border border-[#d7dbd3] bg-[#faf9f4] p-5 sm:p-8"><div className="flex items-start justify-between gap-3"><div><Eyebrow>Defensible report</Eyebrow><h2 className="mt-2 font-serif text-[28px] text-[#29534a]">The evidence, assembled</h2></div><span className="flex items-center gap-1 rounded-full bg-[#dceae5] px-2.5 py-1 font-mono text-[9px] uppercase text-[#3f756b]"><Check size={12} /> Verified</span></div>{body ? <div className="mt-6 max-w-none"><MarkdownReport text={body} /></div> : <p className="mt-6 text-[13px] leading-[1.75] text-[#52615b]">The completed report is ready for review.</p>}<div className="mt-7 flex flex-wrap gap-3 border-t border-[#e4e5de] pt-5 text-[10px] text-[#7a847f]"><span>{item.sourcesCount} sources</span><span>{item.claimsChecked} claims checked</span><span>{item.verificationScore}% confidence</span></div></section>; }
+  return <section data-testid="panel-completed-report" className="rounded-2xl border border-[#d7dbd3] bg-[#faf9f4] p-5 sm:p-8"><div className="flex items-start justify-between gap-3"><div><Eyebrow>Defensible report</Eyebrow><h2 className="mt-2 font-serif text-[28px] text-[#29534a]">The evidence, assembled</h2></div><span className="flex items-center gap-1 rounded-full bg-[#dceae5] px-2.5 py-1 font-mono text-[9px] uppercase text-[#3f756b]"><Check size={12} /> Verified</span></div>{body ? <div id="report-container" className="prose prose-lg prose-indigo max-w-none text-slate-800 mt-6"><MarkdownReport text={body} /></div> : <p className="mt-6 text-[13px] leading-[1.75] text-[#52615b]">The completed report is ready for review.</p>}<div className="mt-7 flex flex-wrap gap-3 border-t border-[#e4e5de] pt-5 text-[10px] text-[#7a847f]"><span>{item.sourcesCount} sources</span><span>{item.claimsChecked} claims checked</span><span>{item.verificationScore}% confidence</span></div></section>; }
 
 function History() { const { data, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), refetchInterval: 5000 } }); return <PageFrame><div className="flex flex-col justify-between gap-4 border-b border-[#d8d8ce] pb-7 sm:flex-row sm:items-end"><div><Eyebrow>Research library</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">Your research trail</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Every question, source, and checked claim in one private record.</p></div><Link href="/" data-testid="link-start-new-from-history" className="flex items-center justify-center gap-2 rounded-lg bg-[#214e4a] px-3.5 py-2.5 text-[11px] font-medium text-[#f5f3eb]"><Plus size={14} /> New research</Link></div>{isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !data?.length ? <div className="mt-7"><EmptyState /></div> : <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{data.map(item => <ResearchCard key={item.id} item={item} />)}</div>}</PageFrame>; }
 

@@ -1,7 +1,7 @@
 langgraph
 langgraph-checkpoint-sqlite
 aiosqlite
-langchain-groq
+langchain-openai
 tavily-python
 httpx
 beautifulsoup4

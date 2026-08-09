@@ -31,3 +31,43 @@
 @layer base { * { @apply border-border; } body { @apply font-sans antialiased bg-background text-foreground; } button, a, input, textarea { -webkit-tap-highlight-color: transparent; } }
 @layer utilities { .font-serif { font-family: var(--app-font-serif); } .font-mono { font-family: var(--app-font-mono); } }
 * { scrollbar-width: thin; scrollbar-color: #b8c7c0 transparent; }
+
+@media print {
+  @page { size: A4; margin: 18mm 16mm; }
+  body { background: #ffffff !important; }
+  body * { visibility: hidden; }
+  #report-container, #report-container * { visibility: visible; }
+  #report-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+  }
+  #report-container .prose { font-size: 12pt; line-height: 1.7; }
+  #report-container .prose h1 { font-size: 20pt; }
+  #report-container .prose h2 { font-size: 15pt; }
+  #report-container .prose h3 { font-size: 12.5pt; }
+  #report-container .overflow-x-auto { overflow: visible !important; }
+  #report-container table,
+  table {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  #report-container tr,
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+  #report-container thead,
+  thead { display: table-header-group !important; }
+  #report-container tbody,
+  tbody { display: table-row-group !important; }
+  #report-container th, #report-container td {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

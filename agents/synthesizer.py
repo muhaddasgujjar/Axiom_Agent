@@ -4,44 +4,46 @@ import os
 import re
 from typing import Any, Dict, List
 
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from agents.state import ResearchState
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "llama-3.3-70b-versatile"
-TEMPERATURE = 0.4
+MODEL_NAME = "gpt-4o"
+TEMPERATURE = 0.3
 MAX_CONTEXT_CHARS = 18000
 
-SYNTHESIZER_SYSTEM_PROMPT = """You are a senior research analyst writing a comprehensive, well-structured deep research report.
+SYNTHESIZER_SYSTEM_PROMPT = """You are a senior technical analyst producing a high-density, enterprise-grade Technical Research Brief. You will receive a numbered list of source documents relevant to a technical subject.
 
-You will receive a numbered list of source documents. Write a thorough report that:
-- Is divided into logical sections with clear headings (e.g. Overview, Historical Context, Current State, Key Data, Expert Perspectives, Contradictions, Conclusion).
-- Contains inline citations in the form "[1]", "[2]", etc., matching the numbered source list.
-- Is based STRICTLY on the provided context. Do not introduce outside facts.
-- Uses objective, precise language and flags uncertainty when sources conflict.
+Respond with ONLY a JSON object with exactly these keys:
 
-Respond with ONLY a JSON object in this exact shape:
-{{
-  "summary": "a 3-4 sentence executive summary of the entire report",
-  "sections": [
-    {{"title": "Section Heading", "content": "Full paragraph(s) of the section with inline citations like [1] and [2]."}}
-  ]
-}}
+1. "executive_verdict": A concise 3-4 sentence summary of the findings, followed by 3 key takeaways rendered as markdown bullets (each prefixed with "- ").
+
+2. "tradeoff_matrix_markdown": A valid Markdown table comparing the key subjects (e.g., indexing or architecture options) across critical operational metrics such as: Latency, Recall %, Memory Footprint, Index Build Time, Scalability Limit. Use a real pipe-delimited table with a header row and a "| --- | --- |" separator row.
+
+3. "deep_analysis": A high-density technical breakdown divided logically into sub-topics using markdown headings (e.g., "### Sub-topic"). Include specific metrics, algorithms, and mechanisms with inline citations in the form [1], [2] matching the numbered source list. Every factual statement must carry at least one citation.
+
+4. "implementation_playbook": A bulleted decision framework formatted as:
+   - "Choose [Option A] when: ..."
+   - "Choose [Option B] when: ..."
+   Include concrete hardware and production deployment recommendations.
+
+5. "limitations": A concise discussion of hardware constraints, edge cases, and query failure modes, with inline citations where applicable.
 
 Rules:
-- Every factual statement must carry at least one citation number.
+- Base the brief STRICTLY on the provided context. Do not introduce outside facts.
+- Write in dense, technical, high-signal prose. Avoid conversational padding or repetitive meta-commentary to minimize token usage.
 - Do not include any commentary outside the JSON object.
 """
 
 
-def _get_llm() -> ChatGroq:
-    api_key = os.environ.get("GROQ_API_KEY")
+def _get_llm() -> ChatOpenAI:
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY is not set in the environment.")
-    return ChatGroq(model=MODEL_NAME, api_key=api_key, temperature=TEMPERATURE, max_tokens=4096)
+        raise RuntimeError("OPENAI_API_KEY is not set in the environment.")
+    return ChatOpenAI(model=MODEL_NAME, api_key=api_key, temperature=TEMPERATURE, max_tokens=4096)
 
 
 def _strip_json(text: str) -> str:
@@ -83,6 +85,31 @@ def _sources_used(content: str, url_by_index: Dict[str, str]) -> List[str]:
         if url and url not in used:
             used.append(url)
     return used
+
+
+def _render_field(value: Any) -> str:
+    if isinstance(value, list):
+        return "\n".join(f"- {str(item).strip()}" for item in value if str(item).strip())
+    if isinstance(value, str):
+        return value.strip()
+    return str(value)
+
+
+def _tidy_table(value: str) -> str:
+    rows: List[str] = []
+    in_table = False
+    for raw_line in value.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("|"):
+            in_table = True
+            rows.append(line)
+        elif in_table:
+            rows[-1] += " " + line
+        else:
+            rows.append(line)
+    return "\n".join(rows)
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(min=4, max=20))
@@ -140,25 +167,30 @@ async def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
         logger.warning("synthesizer_node failed: %s", exc)
         return {"draft_sections": [], "draft_summary": "Report generation failed during synthesis."}
 
-    draft_summary = str(parsed.get("summary", "")).strip() or "No summary provided."
-    sections_raw = parsed.get("sections", [])
+    FIELD_TITLES = [
+        ("executive_verdict", "Executive Summary & Key Takeaways"),
+        ("tradeoff_matrix_markdown", "Architectural Comparison Matrix"),
+        ("deep_analysis", "Deep Technical Analysis"),
+        ("implementation_playbook", "Production Implementation Playbook"),
+        ("limitations", "System Limitations & Risks"),
+    ]
+
+    draft_summary = _render_field(parsed.get("executive_verdict", "")) or "No summary provided."
     draft_sections: List[Dict[str, Any]] = []
-    if isinstance(sections_raw, list):
-        for section in sections_raw:
-            if not isinstance(section, dict):
-                continue
-            title = str(section.get("title", "")).strip()
-            content = str(section.get("content", "")).strip()
-            if not title or not content:
-                continue
-            draft_sections.append(
-                {
-                    "title": title,
-                    "content": content,
-                    "claims": [],
-                    "sources_used": _sources_used(content, url_by_index),
-                }
-            )
+    for field, title in FIELD_TITLES:
+        content = _render_field(parsed.get(field, ""))
+        if field == "tradeoff_matrix_markdown" and content:
+            content = _tidy_table(content)
+        if not content:
+            continue
+        draft_sections.append(
+            {
+                "title": title,
+                "content": content,
+                "claims": [],
+                "sources_used": _sources_used(content, url_by_index),
+            }
+        )
 
     return {
         "draft_sections": draft_sections,

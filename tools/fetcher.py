@@ -14,7 +14,7 @@ MAX_TEXT_LENGTH = 8000
 TIMEOUT_SECONDS = 15.0
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 SUPPORTED_SCHEMES = {"http", "https"}
 
