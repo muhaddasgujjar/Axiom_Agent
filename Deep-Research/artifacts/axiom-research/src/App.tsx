@@ -1,18 +1,21 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { keepPreviousData, QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ArrowUpRight, BookOpen, BrainCircuit, Check, ChevronRight, CircleHelp,
   Clock3, FileCheck2, FileSearch, Filter, FlaskConical, Focus, GitBranch, Globe2,
   Layers3, Library, Link2, LockKeyhole, Menu, MoreVertical, PanelLeft, Pencil, Plus,
-  Search, ShieldCheck, Sparkles, Target, Trash2, X, Pause, Play, RefreshCw, AlertCircle, Download,
+  Search, ShieldCheck, Sparkles, Target, Trash2, X, Pause, Play, RefreshCw, AlertCircle, Download, LogOut,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams, useSearch, Router as WouterRouter } from 'wouter';
 import {
-  getGetResearchQueryKey, getGetWorkspaceSummaryQueryKey, getGetWorkspaceUsageQueryKey, getListResearchQueryKey,
-  useDeleteResearch, useGetResearch, useGetWorkspaceSummary, useGetWorkspaceUsage, useListResearch, usePauseResearch, useUpdateResearch,
+  getGetResearchQueryKey, getGetWorkspaceSummaryQueryKey, getGetWorkspaceUsageQueryKey, getListResearchQueryKey, getListSourcesQueryKey,
+  useDeleteResearch, useGetResearch, useGetWorkspaceSummary, useGetWorkspaceUsage, useListResearch, useListSources, usePauseResearch, useStartResearch, useUpdateResearch,
 } from '@workspace/api-client-react';
 import type { Agent, Research, Source } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AuthProvider, RequireAuth, useAuth } from '@/components/auth-provider';
+import LoginPage from '@/pages/login';
+import RegisterPage from '@/pages/register';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -23,9 +26,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { WorkspacePrivacyModal } from '@/components/workspace-privacy-modal';
+import { ProfileModal } from '@/components/profile-modal';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -37,9 +41,23 @@ function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data: usage } = useGetWorkspaceUsage({ query: { queryKey: getGetWorkspaceUsageQueryKey(), staleTime: 15_000 } });
-  const [location] = useLocation();
+  const { user, signOut } = useAuth();
+  const [location, navigate] = useLocation();
   const active = location.startsWith('/history') ? 'Research library' : location.startsWith('/sources') ? 'Source collections' : 'Workspace';
+  const submitSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    navigate(`/history${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    setSearchQuery('');
+  };
+  const handleLogout = () => {
+    signOut();
+    navigate('/login');
+  };
+  const initials = (user?.email?.split('@')[0] ?? 'U').slice(0, 2).toUpperCase();
   return (
     <main className="min-h-[100dvh] bg-[#f4f2ed] text-[#1d2d2c] selection:bg-[#c8ded8]">
       <div className="flex min-h-[100dvh]">
@@ -58,18 +76,31 @@ function Shell({ children }: { children: ReactNode }) {
           <div className="mt-auto border-t border-[#d8d8ce] p-4">
             <button data-testid="button-workspace-privacy" onClick={() => setPrivacyOpen(true)} className="w-full cursor-pointer rounded-xl border border-[#d4d8d0] bg-[#f5f4ee] p-3.5 text-left transition hover:border-[#9db9b0]"><div className="mb-2 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.16em] text-[#7a847f]">Workspace privacy</span><LockKeyhole size={13} className="text-[#47756d]" /></div><p className="text-[11px] leading-[1.5] text-[#52605b]">Your sources and reports stay private to your workspace.</p><div className="mt-3 h-1 rounded-full bg-[#dfe5df]"><div className="h-full rounded-full bg-[#6e9b90]" style={{ width: `${Math.min(usage?.usedContextPct ?? 0, 100)}%` }} /></div><p className="mt-2 font-mono text-[9px] text-[#89908a]">{usage?.usedContextPct ?? 0}% of research context used</p></button>
             <button data-testid="button-how-axiom-works" className="mt-4 flex items-center gap-2 px-2 text-[11px] text-[#65706c] hover:text-[#214e4a]"><CircleHelp size={14} /> How Axiom works</button>
+            <button data-testid="button-sign-out" onClick={signOut} className="mt-3 flex items-center gap-2 px-2 text-[11px] text-[#65706c] hover:text-[#9b544b]"><LogOut size={14} /> Sign out</button>
           </div>
         </aside>
         {open && <button aria-label="Close menu" data-testid="button-menu-overlay" className="fixed inset-0 z-30 bg-[#214e4a]/15 lg:hidden" onClick={() => setOpen(false)} />}
         <section className="min-w-0 flex-1">
           <header className="flex h-[76px] items-center justify-between border-b border-[#d8d8ce] bg-[#f7f6f1]/85 px-5 backdrop-blur sm:px-8">
             <div className="flex min-w-0 items-center gap-3"><button data-testid="button-toggle-sidebar" className="rounded-lg p-2 text-[#66716c] hover:bg-[#e8eae3]" onClick={() => { setOpen(true); setCollapsed(!collapsed); }}><Menu size={19} className="lg:hidden" /><PanelLeft size={17} className="hidden lg:block" /></button><span className="hidden text-[11px] text-[#89908a] sm:block">My workspace</span><span className="hidden text-[#b0b4ae] sm:block">/</span><span className="truncate text-[12px] font-medium text-[#364541]">{location.startsWith('/research/') ? 'Research workspace' : active}</span></div>
-            <div className="flex items-center gap-2.5"><button data-testid="button-search-workspace" className="hidden items-center gap-2 rounded-lg border border-[#d3d5cc] bg-[#faf9f4] px-3 py-2 text-[11px] text-[#5f6b66] hover:border-[#9db9b0] sm:flex"><Search size={14} /> Search workspace</button><div data-testid="avatar-user" className="grid size-8 place-items-center rounded-full bg-[#c5d8d0] text-[11px] font-semibold text-[#28564f]">LM</div></div>
+            <div className="flex items-center gap-2.5">
+              <form onSubmit={submitSearch} className="hidden sm:flex"><div className="flex items-center gap-2 rounded-lg border border-[#d3d5cc] bg-[#faf9f4] px-3 py-2 transition hover:border-[#9db9b0] focus-within:border-[#83a99e]"><Search size={14} className="text-[#7a847f]" /><input data-testid="input-search-workspace" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search workspace" className="w-40 bg-transparent text-[11px] text-[#344b46] outline-none placeholder:text-[#a0a8a1] lg:w-52" /></div></form>
+              <DropdownMenu>
+                <DropdownMenuTrigger data-testid="avatar-user" aria-label="Account menu" className="grid size-8 place-items-center rounded-full bg-[#c5d8d0] text-[11px] font-semibold text-[#28564f] outline-none transition hover:ring-2 hover:ring-[#9db9b0]">{initials}</DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal"><span className="block font-mono text-[9px] uppercase tracking-[.16em] text-[#89918a]">Signed in as</span><span className="mt-1 block truncate text-[12px] font-medium text-[#344b46]">{user?.email ?? '…'}</span></DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem data-testid="button-manage-profile" onClick={() => setProfileOpen(true)}>Manage Profile</DropdownMenuItem>
+                  <DropdownMenuItem data-testid="button-logout" onClick={handleLogout} className="text-[#9b544b]"><LogOut size={13} /> Log out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
           {children}
         </section>
       </div>
       <WorkspacePrivacyModal open={privacyOpen} onOpenChange={setPrivacyOpen} />
+      <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
     </main>
   );
 }
@@ -91,6 +122,7 @@ function Home() {
   const [startError, setStartError] = useState(false);
   const { data: researchList, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), staleTime: 30_000 } });
   const { data: summary } = useGetWorkspaceSummary({ query: { queryKey: getGetWorkspaceSummaryQueryKey(), staleTime: 30_000 } });
+  const start = useStartResearch();
   useEffect(() => {
     if (search === 'new=1') {
       window.history.replaceState(null, '', window.location.pathname);
@@ -101,16 +133,11 @@ function Home() {
     if (query.trim().length < 10 || starting) return;
     setStarting(true);
     setStartError(false);
-    try {
-      const response = await fetch('/api/research/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query.trim() }) });
-      if (!response.ok) throw new Error('start_failed');
-      const data = await response.json();
-      setLocation(`/research/${data.research_id ?? data.id}`);
-    } catch {
-      setStartError(true);
-    } finally {
-      setStarting(false);
-    }
+    start.mutate({ data: { query: query.trim() } }, {
+      onSuccess: (data) => setLocation(`/research/${data.research_id ?? data.id}`),
+      onError: () => setStartError(true),
+      onSettled: () => setStarting(false),
+    });
   };
   const recent = researchList?.slice(0, 3) ?? [];
   return <PageFrame>
@@ -301,13 +328,19 @@ function Report({ item }: { item: Research }) {
 function History() {
   const { data, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), refetchInterval: 5000 } });
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const urlSearch = useSearch();
+  const urlTerm = new URLSearchParams(urlSearch).get('q') ?? '';
+  const [search, setSearch] = useState(() => urlTerm);
   const [statusFilter, setStatusFilter] = useState<'all' | 'done' | 'running' | 'paused' | 'failed'>('all');
   const [renameTarget, setRenameTarget] = useState<Research | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Research | null>(null);
   const rename = useUpdateResearch();
   const remove = useDeleteResearch();
+
+  useEffect(() => {
+    if (urlTerm) setSearch(urlTerm);
+  }, [urlTerm]);
 
   const confirmRename = () => {
     if (!renameTarget) return;
@@ -350,9 +383,25 @@ function History() {
   </PageFrame>;
 }
 
-function Sources() { const { data: list, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), staleTime: 30_000 } }); const sources = (list ?? []).flatMap(r => r.sources.map(s => ({ ...s, researchId: r.id, researchQuery: r.query }))); return <PageFrame><div className="border-b border-[#d8d8ce] pb-7"><Eyebrow>Source collections</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">The evidence shelf</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Documents Axiom has read across your private research context.</p></div>{isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !sources.length ? <div className="mt-7"><EmptyState /></div> : <div className="mt-7 grid gap-3 md:grid-cols-2">{sources.map((source, i) => <Link href={`/research/${source.researchId}`} data-testid={`card-source-${i}`} key={`${source.researchId}-${source.title}-${i}`} className="group rounded-xl border border-[#d7dbd3] bg-[#faf9f4] p-5 transition hover:border-[#9db9b0]"><div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.14em] text-[#7a847f]">{source.type}</span><span className="font-mono text-[10px] text-[#77837c]">{source.progress}% read</span></div><h2 className="mt-3 text-[14px] font-medium leading-[1.4] text-[#3c514b]">{source.title}</h2><p className="mt-1 text-[11px] text-[#89918a]">{source.source}</p><div className="mt-4 h-1 rounded-full bg-[#e4e8e2]"><div className="h-full rounded-full bg-[#78a69b]" style={{ width: `${source.progress}%` }} /></div><p className="mt-3 line-clamp-1 text-[10px] text-[#9aa39c]">From: {source.researchQuery}</p></Link>)}</div>}</PageFrame>; }
+function Sources() { const [page, setPage] = useState(1); const limit = 12; const { data, isLoading, isError, refetch } = useListSources({ page, limit }, { query: { queryKey: getListSourcesQueryKey({ page, limit }), staleTime: 30_000, placeholderData: keepPreviousData } }); const sources = data?.data ?? []; const totalPages = data?.pagination.totalPages ?? 1; const total = data?.pagination.total ?? 0; return <PageFrame><div className="border-b border-[#d8d8ce] pb-7"><Eyebrow>Source collections</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">The evidence shelf</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Documents Axiom has read across your private research context.</p></div>{isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !sources.length ? <div className="mt-7"><EmptyState /></div> : <><div className="mt-7 grid gap-3 md:grid-cols-2">{sources.map((source, i) => <Link href={`/research/${source.researchId}`} data-testid={`card-source-${i}`} key={`${source.researchId}-${source.title}-${i}`} className="group rounded-xl border border-[#d7dbd3] bg-[#faf9f4] p-5 transition hover:border-[#9db9b0]"><div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.14em] text-[#7a847f]">{source.type}</span><span className="font-mono text-[10px] text-[#77837c]">{source.progress}% read</span></div><h2 className="mt-3 text-[14px] font-medium leading-[1.4] text-[#3c514b]">{source.title}</h2><p className="mt-1 text-[11px] text-[#89918a]">{source.source}</p><div className="mt-4 h-1 rounded-full bg-[#e4e8e2]"><div className="h-full rounded-full bg-[#78a69b]" style={{ width: `${source.progress}%` }} /></div><p className="mt-3 line-clamp-1 text-[10px] text-[#9aa39c]">From: {source.researchQuery}</p></Link>)}</div><div className="mt-6 flex items-center justify-between border-t border-[#d8d8ce] pt-4"><Button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button><span className="font-mono text-[10px] text-[#77837c]">Page {page} of {totalPages} · {total} sources</span><Button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button></div></>}</PageFrame>; }
 
-function Router() { return <Switch><Route path="/" component={Home} /><Route path="/research/:id" component={ResearchPage} /><Route path="/history" component={History} /><Route path="/sources" component={Sources} /><Route component={NotFound} /></Switch>; }
+function WorkspaceRouter() { return <Switch><Route path="/" component={Home} /><Route path="/research/:id" component={ResearchPage} /><Route path="/history" component={History} /><Route path="/sources" component={Sources} /><Route component={NotFound} /></Switch>; }
+function AuthRouter() { return <Switch><Route path="/login" component={LoginPage} /><Route path="/register" component={RegisterPage} /><Route>{() => <RequireAuth><Shell><WorkspaceRouter /></Shell></RequireAuth>}</Route></Switch>; }
 function RoutedErrorBoundary({ children }: { children: ReactNode }) { const [location] = useLocation(); return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>; }
-function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RoutedErrorBoundary><Shell><Router /></Shell></RoutedErrorBoundary></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <RoutedErrorBoundary>
+              <AuthRouter />
+            </RoutedErrorBoundary>
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 export default App;

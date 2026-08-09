@@ -9,6 +9,34 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface RegisterInput {
+  email: string;
+  /** @minLength 8 */
+  password: string;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface UpdateProfileInput {
+  email?: string;
+  /** @minLength 8 */
+  password?: string;
+}
+
 export interface ResearchInput {
   /** @minLength 10 */
   query: string;
@@ -58,6 +86,28 @@ export interface Source {
   title: string;
   source: string;
   progress: number;
+}
+
+export interface ResearchSource {
+  researchId: string;
+  researchQuery: string;
+  status: string;
+  type: string;
+  title: string;
+  source: string;
+  progress: number;
+}
+
+export type PaginatedSourcesPagination = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export interface PaginatedSources {
+  data: ResearchSource[];
+  pagination: PaginatedSourcesPagination;
 }
 
 export interface RecentResearch {
@@ -132,4 +182,18 @@ export interface PurgeCacheResult {
   maxContextLimit: number;
   usedContextPct: number;
 }
+
+export type ListSourcesParams = {
+/**
+ * Page number (1-based)
+ * @minimum 1
+ */
+page?: number;
+/**
+ * Number of sources per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
 

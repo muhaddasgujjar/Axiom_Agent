@@ -18,6 +18,79 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Creates a user account and returns a signed JWT
+ * @summary Register a new user
+ */
+export const authRegisterBodyPasswordMin = 8;
+
+
+
+export const AuthRegisterBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string().min(authRegisterBodyPasswordMin)
+})
+
+export const AuthRegisterResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * Verifies credentials and returns a signed JWT
+ * @summary Log in
+ */
+export const AuthLoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+export const AuthLoginResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * Returns the authenticated user's details
+ * @summary Get current user
+ */
+export const AuthMeResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * Updates the current user's email and/or password
+ * @summary Update profile
+ */
+export const authUpdateProfileBodyPasswordMin = 8;
+
+
+
+export const AuthUpdateProfileBody = zod.object({
+  "email": zod.string().optional(),
+  "password": zod.string().min(authUpdateProfileBodyPasswordMin).optional()
+})
+
+export const AuthUpdateProfileResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * Returns the most recent research jobs in the workspace
  * @summary List research jobs
  */
@@ -74,6 +147,41 @@ export const StartResearchResponse = zod.object({
   "id": zod.string(),
   "query": zod.string(),
   "status": zod.enum(['planning', 'searching', 'reading', 'synthesizing', 'verifying', 'formatting', 'done', 'paused', 'failed'])
+})
+
+
+/**
+ * Returns paginated source collections for the current user, ordered by most recent research job
+ * @summary List source collections
+ */
+export const listSourcesQueryPageDefault = 1;
+
+export const listSourcesQueryLimitDefault = 12;
+export const listSourcesQueryLimitMax = 100;
+
+
+
+export const ListSourcesQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).default(listSourcesQueryPageDefault).describe('Page number (1-based)'),
+  "limit": zod.coerce.number().int().min(1).max(listSourcesQueryLimitMax).default(listSourcesQueryLimitDefault).describe('Number of sources per page')
+})
+
+export const ListSourcesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "researchId": zod.string(),
+  "researchQuery": zod.string(),
+  "status": zod.string(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "source": zod.string(),
+  "progress": zod.number()
+})),
+  "pagination": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
 })
 
 

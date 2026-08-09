@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, researchTable, type ResearchAgent, type ResearchRecent, type ResearchSource } from "@workspace/db";
 import {
   DeleteResearchParams,
@@ -9,6 +9,7 @@ import {
   GetWorkspaceSummaryResponse,
   GetWorkspaceUsageResponse,
   ListResearchResponse,
+  ListSourcesResponse,
   PauseResearchParams,
   PauseResearchResponse,
   PurgeWorkspaceCacheResponse,
@@ -68,6 +69,12 @@ const sourceSeed: ResearchSource[] = [
 const researchTimers = new Map<string, ReturnType<typeof setInterval>>();
 const pausedStages = new Map<string, ActiveStage>();
 let seedPromise: Promise<void> | undefined;
+
+// Strict tenant isolation: every query is scoped to the authenticated user's id
+// so a user can only ever see their own research rows.
+function userScope(uid: string) {
+  return eq(researchTable.userId, uid);
+}
 
 async function pythonFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T | null> {
   try {
@@ -260,6 +267,7 @@ function startResearchTimer(id: string): void {
     const nextStage = stages[Math.min(currentIndex + 1, stages.length - 1)];
     const next = stageMeta[nextStage];
     const report = buildReport(row.query);
+    const userIdScope = row.userId ? eq(researchTable.userId, row.userId) : isNull(researchTable.userId);
     await db.update(researchTable).set({
       status: nextStage,
       progress: next.progress,
@@ -272,7 +280,7 @@ function startResearchTimer(id: string): void {
       summary: report.summary,
       report: report.report,
       updatedAt: new Date(),
-    }).where(eq(researchTable.id, id));
+    }).where(and(eq(researchTable.id, id), userIdScope));
 
     if (nextStage === "done") {
       const current = researchTimers.get(id);
@@ -300,13 +308,14 @@ function mapBackendToResearch(backend: BackendState, createdAt: Date): Omit<type
   };
 }
 
-async function upsertBackendState(id: string, backend: BackendState, createdAt: Date): Promise<void> {
+async function upsertBackendState(id: string, backend: BackendState, createdAt: Date, userId?: string): Promise<void> {
   const mapped = mapBackendToResearch(backend, createdAt);
-  const [existing] = await db.select({ id: researchTable.id }).from(researchTable).where(eq(researchTable.id, id)).limit(1);
+  const scope = userId ? and(eq(researchTable.id, id), eq(researchTable.userId, userId)) : eq(researchTable.id, id);
+  const [existing] = await db.select({ id: researchTable.id }).from(researchTable).where(scope).limit(1);
   if (existing) {
-    await db.update(researchTable).set(mapped).where(eq(researchTable.id, id));
+    await db.update(researchTable).set(mapped).where(scope);
   } else {
-    await db.insert(researchTable).values({ id, createdAt, ...mapped });
+    await db.insert(researchTable).values({ id, createdAt, userId, ...mapped });
   }
 }
 
@@ -314,8 +323,8 @@ async function proxyGetResearch(id: string): Promise<BackendState | null> {
   return pythonFetch<BackendState>(`/research/${encodeURIComponent(id)}`);
 }
 
-async function computeWorkspaceUsage() {
-  const rows = await db.select().from(researchTable);
+async function computeWorkspaceUsage(userId: string) {
+  const rows = await db.select().from(researchTable).where(userScope(userId));
   const doneRows = rows.filter((row) => row.status === "done");
   const maxContextLimit = Number(process.env["WORKSPACE_MAX_CONTEXT_TOKENS"] ?? 1_000_000);
   const reportTokens = rows.reduce((total, row) => total + Math.floor(((row.report?.length ?? 0) + (row.summary?.length ?? 0)) / 4), 0);
@@ -333,7 +342,7 @@ async function computeWorkspaceUsage() {
 
 router.get("/research", async (req, res): Promise<void> => {
   await ensureSeeded();
-  const rows = await db.select().from(researchTable).orderBy(desc(researchTable.createdAt));
+  const rows = await db.select().from(researchTable).where(userScope(req.userId!)).orderBy(desc(researchTable.createdAt));
   const recent = recentFromRows(rows);
   const result = rows.map((row) => toApiResearch(row, recent));
   req.log.info({ count: result.length }, "Listed research jobs");
@@ -376,12 +385,70 @@ async function startResearchProxy(req: Request, res: Response): Promise<void> {
     report: "",
     createdAt: now,
     updatedAt: now,
+    userId: req.userId,
   });
 
   res.status(201).json({ research_id: id, id, query: parsed.data.query.trim(), status: "planning" });
 }
 
 router.post("/research/start", startResearchProxy);
+
+type SourceRow = {
+  research_id: string;
+  research_query: string;
+  status: string;
+  type: string;
+  title: string;
+  source: string;
+  progress: number;
+};
+
+router.get("/research/sources", async (req, res): Promise<void> => {
+  const page = Math.max(1, Number(req.query["page"] ?? 1) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query["limit"] ?? 12) || 12));
+  const offset = (page - 1) * limit;
+  const userId = req.userId!;
+
+  const rows = (
+    await db.execute(sql`
+      SELECT r.id AS research_id, r.query AS research_query, r.status,
+             s->>'type' AS type, s->>'title' AS title, s->>'source' AS source,
+             COALESCE((s->>'progress')::int, 0) AS progress
+      FROM ${researchTable} r
+      JOIN LATERAL jsonb_array_elements(COALESCE(r.sources, '[]'::jsonb)) AS s ON true
+      WHERE r.user_id = ${userId}
+      ORDER BY r.created_at DESC, r.id
+      LIMIT ${limit} OFFSET ${offset}
+    `)
+  ).rows as SourceRow[];
+
+  const [{ count }] = (await db.execute(sql`
+    SELECT count(*)::int AS count
+    FROM ${researchTable} r
+    JOIN LATERAL jsonb_array_elements(COALESCE(r.sources, '[]'::jsonb)) AS s ON true
+    WHERE r.user_id = ${userId}
+  `)).rows as { count: number }[];
+
+  const total = Number(count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const data = rows.map((row) => ({
+    researchId: row.research_id,
+    researchQuery: row.research_query,
+    status: row.status,
+    type: row.type,
+    title: row.title,
+    source: row.source,
+    progress: row.progress,
+  }));
+
+  res.json(
+    ListSourcesResponse.parse({
+      data,
+      pagination: { total, page, limit, totalPages },
+    })
+  );
+});
 
 router.get("/research/:id", async (req, res): Promise<void> => {
   const params = GetResearchParams.safeParse(req.params);
@@ -391,23 +458,23 @@ router.get("/research/:id", async (req, res): Promise<void> => {
   }
   await ensureSeeded();
 
-  const [existing] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  const [existing] = await db.select().from(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).limit(1);
 
   const backend = await proxyGetResearch(params.data.id);
   if (backend) {
-    await upsertBackendState(params.data.id, backend, existing?.createdAt ?? new Date());
-    const [row] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+    await upsertBackendState(params.data.id, backend, existing?.createdAt ?? new Date(), req.userId!);
+    const [row] = await db.select().from(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).limit(1);
     if (!row) {
       res.status(404).json({ error: "Research job not found" });
       return;
     }
     if (row.status === "paused") {
       const paused = { ...row, status: "paused" };
-      const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).orderBy(desc(researchTable.createdAt));
+      const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).where(userScope(req.userId!)).orderBy(desc(researchTable.createdAt));
       res.json(GetResearchResponse.parse(toApiResearch(paused, recentFromRows(rows))));
       return;
     }
-    const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).orderBy(desc(researchTable.createdAt));
+    const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).where(userScope(req.userId!)).orderBy(desc(researchTable.createdAt));
     res.json(GetResearchResponse.parse(toApiResearch(row, recentFromRows(rows))));
     return;
   }
@@ -417,7 +484,7 @@ router.get("/research/:id", async (req, res): Promise<void> => {
     return;
   }
   if (!["done", "paused"].includes(existing.status)) startResearchTimer(existing.id);
-  const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).orderBy(desc(researchTable.createdAt));
+  const rows = await db.select({ id: researchTable.id, query: researchTable.query, status: researchTable.status, sourcesCount: researchTable.sourcesCount, elapsedMinutes: researchTable.elapsedMinutes }).from(researchTable).where(userScope(req.userId!)).orderBy(desc(researchTable.createdAt));
   const response = toApiResearch(existing, recentFromRows(rows));
   res.json(GetResearchResponse.parse(response));
 });
@@ -429,7 +496,7 @@ router.post("/research/:id/pause", async (req, res): Promise<void> => {
     return;
   }
   await ensureSeeded();
-  const [row] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  const [row] = await db.select().from(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).limit(1);
   if (!row) {
     res.status(404).json({ error: "Research job not found" });
     return;
@@ -438,7 +505,7 @@ router.post("/research/:id/pause", async (req, res): Promise<void> => {
   const nextStatus = isPaused ? pausedStages.get(row.id) ?? "reading" : row.status as ActiveStage;
   if (isPaused) pausedStages.delete(row.id);
   else pausedStages.set(row.id, nextStatus);
-  const [updated] = await db.update(researchTable).set({ status: isPaused ? nextStatus : "paused", updatedAt: new Date() }).where(eq(researchTable.id, row.id)).returning();
+  const [updated] = await db.update(researchTable).set({ status: isPaused ? nextStatus : "paused", updatedAt: new Date() }).where(and(eq(researchTable.id, row.id), userScope(req.userId!))).returning();
   if (isPaused) startResearchTimer(row.id);
   const response = toApiResearch(updated, []);
   req.log.info({ id: row.id, status: response.status }, "Toggled research pause state");
@@ -457,13 +524,13 @@ router.patch("/research/:id", async (req, res): Promise<void> => {
     return;
   }
   await ensureSeeded();
-  const [existing] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  const [existing] = await db.select().from(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).limit(1);
   if (!existing) {
     res.status(404).json({ error: "Research job not found" });
     return;
   }
   const query = body.data.query.trim();
-  const [updated] = await db.update(researchTable).set({ query, updatedAt: new Date() }).where(eq(researchTable.id, params.data.id)).returning();
+  const [updated] = await db.update(researchTable).set({ query, updatedAt: new Date() }).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).returning();
   await pythonFetch(`/research/${encodeURIComponent(params.data.id)}`, { method: "PATCH", body: JSON.stringify({ query }) });
   req.log.info({ id: params.data.id }, "Renamed research job");
   res.json(UpdateResearchResponse.parse(toApiResearch(updated, [])));
@@ -476,7 +543,7 @@ router.delete("/research/:id", async (req, res): Promise<void> => {
     return;
   }
   await ensureSeeded();
-  const [existing] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  const [existing] = await db.select().from(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!))).limit(1);
   if (!existing) {
     res.status(404).json({ error: "Research job not found" });
     return;
@@ -485,7 +552,7 @@ router.delete("/research/:id", async (req, res): Promise<void> => {
   if (timer) clearInterval(timer);
   researchTimers.delete(params.data.id);
   pausedStages.delete(params.data.id);
-  await db.delete(researchTable).where(eq(researchTable.id, params.data.id));
+  await db.delete(researchTable).where(and(eq(researchTable.id, params.data.id), userScope(req.userId!)));
   await pythonFetch(`/research/${encodeURIComponent(params.data.id)}`, { method: "DELETE" });
   req.log.info({ id: params.data.id }, "Deleted research job");
   res.json(DeleteResearchResponse.parse({ ok: true }));
@@ -493,25 +560,25 @@ router.delete("/research/:id", async (req, res): Promise<void> => {
 
 router.get("/workspace/usage", async (req, res): Promise<void> => {
   await ensureSeeded();
-  const usage = await computeWorkspaceUsage();
+  const usage = await computeWorkspaceUsage(req.userId!);
   req.log.info({ pct: usage.usedContextPct }, "Reported workspace usage");
   res.json(GetWorkspaceUsageResponse.parse(usage));
 });
 
 router.post("/workspace/purge-cache", async (req, res): Promise<void> => {
   await ensureSeeded();
-  const rows = await db.select({ id: researchTable.id, status: researchTable.status }).from(researchTable);
+  const rows = await db.select({ id: researchTable.id, status: researchTable.status }).from(researchTable).where(userScope(req.userId!));
   const inactiveIds = rows.filter((row) => row.status === "done" || row.status === "failed").map((row) => row.id);
   const purged = await pythonFetch<{ purged_threads?: number }>("/workspace/purge", { method: "POST", body: JSON.stringify({ thread_ids: inactiveIds }) });
-  const usage = await computeWorkspaceUsage();
+  const usage = await computeWorkspaceUsage(req.userId!);
   req.log.info({ purgedThreads: purged?.purged_threads ?? inactiveIds.length }, "Purged inactive workspace cache");
   res.json(PurgeWorkspaceCacheResponse.parse({ purgedThreads: purged?.purged_threads ?? 0, ...usage }));
 });
 
 router.get("/workspace/summary", async (req, res): Promise<void> => {
   await ensureSeeded();
-  const rows = await db.select().from(researchTable);
-  const usage = await computeWorkspaceUsage();
+  const rows = await db.select().from(researchTable).where(userScope(req.userId!));
+  const usage = await computeWorkspaceUsage(req.userId!);
   const summary = {
     activeResearch: rows.filter((row) => !["done", "failed"].includes(row.status)).length,
     completedReports: rows.filter((row) => row.status === "done").length,

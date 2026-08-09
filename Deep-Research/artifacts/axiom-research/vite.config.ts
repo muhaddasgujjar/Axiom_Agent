@@ -74,7 +74,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: process.env.API_PROXY_TARGET ?? 'http://localhost:5000',
+        target: process.env.VITE_API_URL ?? process.env.API_PROXY_TARGET ?? 'http://localhost:5000',
         changeOrigin: true,
       },
     },

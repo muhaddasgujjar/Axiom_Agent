@@ -70,6 +70,7 @@ autoInstallPeers: false
 
 onlyBuiltDependencies:
   - '@swc/core'
+  - bcrypt
   - esbuild
   - msw
   - unrs-resolver
@@ -147,4 +148,5 @@ overrides:
   esbuild: "0.27.3"
 
 allowBuilds:
+  bcrypt: set this to true or false
   esbuild: true

@@ -1,4 +1,4 @@
-import { jsonb, integer, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
+import { jsonb, integer, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export type ResearchAgent = {
   name: string;
@@ -37,6 +37,7 @@ export const researchTable = pgTable("research", {
   report: text("report").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  userId: uuid("user_id"),
 });
 
 export type Research = typeof researchTable.$inferSelect;
