@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict, List
 
 from langchain_groq import ChatGroq
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from agents.state import ResearchState
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "llama-3.3-70b-versatile"
 TEMPERATURE = 0.4
-MAX_CONTEXT_CHARS = 28000
+MAX_CONTEXT_CHARS = 18000
 
 SYNTHESIZER_SYSTEM_PROMPT = """You are a senior research analyst writing a comprehensive, well-structured deep research report.
 
@@ -84,6 +85,12 @@ def _sources_used(content: str, url_by_index: Dict[str, str]) -> List[str]:
     return used
 
 
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=4, max=20))
+async def _invoke_llm_with_retry(messages: List[Dict[str, str]]) -> Any:
+    llm = _get_llm()
+    return await llm.ainvoke(messages)
+
+
 async def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
     extracted = state.get("extracted", []) or []
     docs = [
@@ -115,7 +122,6 @@ async def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
     context = "\n".join(context_blocks)
 
     try:
-        llm = _get_llm()
         messages = [
             {"role": "system", "content": SYNTHESIZER_SYSTEM_PROMPT},
             {
@@ -126,10 +132,11 @@ async def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
                 ),
             },
         ]
-        response = await llm.ainvoke(messages)
+        response = await _invoke_llm_with_retry(messages)
         raw = response.content if hasattr(response, "content") else str(response)
         parsed = json.loads(_strip_json(raw))
     except Exception as exc:  # noqa: BLE001
+        print(f"Synthesizer Error: {exc}")
         logger.warning("synthesizer_node failed: %s", exc)
         return {"draft_sections": [], "draft_summary": "Report generation failed during synthesis."}
 
