@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { db, researchTable, type ResearchAgent, type ResearchRecent, type ResearchSource } from "@workspace/db";
+import { db, researchTable, userUsageTable, type ResearchAgent, type ResearchRecent, type ResearchSource } from "@workspace/db";
 import {
   DeleteResearchParams,
   DeleteResearchResponse,
   GetResearchParams,
   GetResearchResponse,
+  GetUsageResponse,
   GetWorkspaceSummaryResponse,
   GetWorkspaceUsageResponse,
   ListResearchResponse,
@@ -18,6 +19,7 @@ import {
   UpdateResearchParams,
   UpdateResearchResponse,
 } from "@workspace/api-zod";
+import { checkDailyLimits, DAILY_REPORT_LIMIT } from "../middleware/rateLimit";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -357,41 +359,78 @@ async function startResearchProxy(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const userId = req.userId!;
+
+  // Atomic reserve: increment only while still under the ceiling. Returning no
+  // row means another concurrent request took the last slot — bail with 429
+  // before spending anything on the Python pipeline.
+  const reserved = (
+    await db.execute(sql`
+      UPDATE ${userUsageTable}
+      SET reports_today = reports_today + 1
+      WHERE ${userUsageTable.userId} = ${userId} AND reports_today < ${DAILY_REPORT_LIMIT}
+      RETURNING reports_today
+    `)
+  ).rows as { reports_today: number }[];
+
+  if (reserved.length === 0) {
+    req.log.info({ userId }, "Daily research limit reached at reserve time");
+    res.status(429).json({ error: "Daily limit reached. Resets at midnight UTC." });
+    return;
+  }
+
+  const release = async (reason: string): Promise<void> => {
+    req.log.warn({ userId, reason }, "Releasing reserved research slot");
+    await db.execute(sql`
+      UPDATE ${userUsageTable}
+      SET reports_today = GREATEST(reports_today - 1, 0)
+      WHERE ${userUsageTable.userId} = ${userId}
+    `);
+  };
+
   const started = await pythonFetch<{ research_id: string; status: string }>(`/research/`, {
     method: "POST",
     body: JSON.stringify({ query: parsed.data.query.trim() }),
   });
   if (!started?.research_id) {
+    await release("python backend unavailable");
     req.log.error("Python research API could not start a job");
     res.status(502).json({ error: "Research backend is unavailable. Please try again." });
     return;
   }
 
-  await ensureSeeded();
-  const id = started.research_id;
-  const now = new Date();
-  await db.insert(researchTable).values({
-    id,
-    query: parsed.data.query.trim(),
-    status: "planning",
-    progress: stageMeta.planning.progress,
-    elapsedMinutes: 0,
-    verificationScore: 0,
-    sourcesCount: 0,
-    claimsChecked: 0,
-    agents: buildAgents("planning"),
-    sources: [],
-    summary: "Axiom is mapping the evidence, testing claims, and building a source-backed answer.",
-    report: "",
-    createdAt: now,
-    updatedAt: now,
-    userId: req.userId,
-  });
+  try {
+    await ensureSeeded();
+    const id = started.research_id;
+    const now = new Date();
+    await db.insert(researchTable).values({
+      id,
+      query: parsed.data.query.trim(),
+      status: "planning",
+      progress: stageMeta.planning.progress,
+      elapsedMinutes: 0,
+      verificationScore: 0,
+      sourcesCount: 0,
+      claimsChecked: 0,
+      agents: buildAgents("planning"),
+      sources: [],
+      summary: "Axiom is mapping the evidence, testing claims, and building a source-backed answer.",
+      report: "",
+      createdAt: now,
+      updatedAt: now,
+      userId,
+    });
+  } catch (error) {
+    await release("database insert failed");
+    req.log.error({ err: String(error) }, "Could not record research job");
+    res.status(502).json({ error: "Research backend is unavailable. Please try again." });
+    return;
+  }
 
-  res.status(201).json({ research_id: id, id, query: parsed.data.query.trim(), status: "planning" });
+  res.status(201).json({ research_id: started.research_id, id: started.research_id, query: parsed.data.query.trim(), status: "planning" });
 }
 
-router.post("/research/start", startResearchProxy);
+router.post("/research/start", checkDailyLimits, startResearchProxy);
 
 type SourceRow = {
   research_id: string;
@@ -586,6 +625,40 @@ router.get("/workspace/summary", async (req, res): Promise<void> => {
     contextUsed: usage.usedContextPct,
   };
   res.json(GetWorkspaceSummaryResponse.parse(summary));
+});
+
+router.get("/usage", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const today = new Date().toISOString().slice(0, 10);
+
+  await db
+    .insert(userUsageTable)
+    .values({ userId, lastResetDate: today })
+    .onConflictDoNothing({ target: userUsageTable.userId });
+
+  await db
+    .update(userUsageTable)
+    .set({ reportsToday: 0, tokensToday: 0, lastResetDate: today })
+    .where(sql`${userUsageTable.userId} = ${userId} AND ${userUsageTable.lastResetDate} <> ${today}`);
+
+  const [row] = await db.select().from(userUsageTable).where(eq(userUsageTable.userId, userId)).limit(1);
+  if (!row) {
+    res.status(500).json({ error: "Could not load usage record" });
+    return;
+  }
+
+  const [y, m, d] = today.split("-").map(Number);
+  const resetsAt = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0)).toISOString();
+
+  req.log.info({ reportsToday: row.reportsToday }, "Reported daily usage");
+  res.json(
+    GetUsageResponse.parse({
+      reportsToday: row.reportsToday,
+      tokensToday: row.tokensToday,
+      dailyLimit: DAILY_REPORT_LIMIT,
+      resetsAt,
+    }),
+  );
 });
 
 export default router;

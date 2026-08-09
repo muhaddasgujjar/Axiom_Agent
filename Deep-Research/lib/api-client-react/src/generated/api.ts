@@ -21,6 +21,7 @@ import type {
 
 import type {
   AuthResponse,
+  DailyUsage,
   DeleteResearchResult,
   HealthStatus,
   ListSourcesParams,
@@ -586,6 +587,84 @@ export const useStartResearch = <TError = ErrorType<void>,
       > => {
       return useMutation(getStartResearchMutationOptions(options));
     }
+
+export const getGetUsageUrl = () => {
+
+
+
+
+  return `/api/usage`
+}
+
+/**
+ * Returns how many research reports have been run today out of the daily limit, plus when the counter resets (UTC)
+ * @summary Get the current user's daily usage quota
+ */
+export const getUsage = async ( options?: Parameters<typeof customFetch>[1]): Promise<DailyUsage> => {
+
+  return customFetch<DailyUsage>(getGetUsageUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUsageQueryKey = () => {
+    return [
+    `/api/usage`
+    ] as const;
+    }
+
+
+export const getGetUsageQueryOptions = <TData = Awaited<ReturnType<typeof getUsage>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUsageQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUsage>>> = ({ signal }) => getUsage({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUsage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getUsage>>>
+export type GetUsageQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current user's daily usage quota
+ */
+
+export function useGetUsage<TData = Awaited<ReturnType<typeof getUsage>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUsageQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSourcesUrl = (params?: ListSourcesParams,) => {
   const normalizedParams = new URLSearchParams();

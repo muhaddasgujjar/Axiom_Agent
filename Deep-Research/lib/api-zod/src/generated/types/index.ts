@@ -9,6 +9,7 @@
 export * from './agent';
 export * from './agentStatus';
 export * from './authResponse';
+export * from './dailyUsage';
 export * from './deleteResearchResult';
 export * from './healthStatus';
 export * from './listSourcesParams';

@@ -151,6 +151,18 @@ export const StartResearchResponse = zod.object({
 
 
 /**
+ * Returns how many research reports have been run today out of the daily limit, plus when the counter resets (UTC)
+ * @summary Get the current user's daily usage quota
+ */
+export const GetUsageResponse = zod.object({
+  "reportsToday": zod.number(),
+  "tokensToday": zod.number(),
+  "dailyLimit": zod.number(),
+  "resetsAt": zod.string()
+})
+
+
+/**
  * Returns paginated source collections for the current user, ordered by most recent research job
  * @summary List source collections
  */

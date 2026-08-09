@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
 import { and, eq, ne } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, userUsageTable } from "@workspace/db";
 import {
   AuthLoginBody,
   AuthLoginResponse,
@@ -33,7 +33,11 @@ router.post("/register", async (req, res): Promise<void> => {
     return;
   }
   const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_ROUNDS);
-  const [row] = await db.insert(usersTable).values({ email, passwordHash }).returning();
+  const row = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(usersTable).values({ email, passwordHash }).returning();
+    await tx.insert(userUsageTable).values({ userId: created.id });
+    return created;
+  });
   const user = publicUser(row);
   const token = signToken(row);
   req.log.info({ userId: row.id }, "Registered a new user");
@@ -104,7 +108,11 @@ router.post("/seed", async (req, res): Promise<void> => {
     return;
   }
   const passwordHash = await bcrypt.hash("password123", BCRYPT_ROUNDS);
-  const [row] = await db.insert(usersTable).values({ email, passwordHash }).returning();
+  const row = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(usersTable).values({ email, passwordHash }).returning();
+    await tx.insert(userUsageTable).values({ userId: created.id });
+    return created;
+  });
   const token = signToken(row);
   req.log.info({ userId: row.id }, "Seeded test user");
   res.status(201).json(AuthRegisterResponse.parse({ token, user: publicUser(row) }));

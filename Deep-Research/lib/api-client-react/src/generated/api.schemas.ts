@@ -88,6 +88,13 @@ export interface Source {
   progress: number;
 }
 
+export interface DailyUsage {
+  reportsToday: number;
+  tokensToday: number;
+  dailyLimit: number;
+  resetsAt: string;
+}
+
 export interface ResearchSource {
   researchId: string;
   researchQuery: string;

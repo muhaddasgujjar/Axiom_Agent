@@ -157,8 +157,23 @@ paths:
                 $ref: "#/components/schemas/StartedResearch"
         "400":
           description: Invalid research question
+        "429":
+          description: Daily research limit reached. Resets at midnight UTC.
         "502":
           description: Research backend unavailable
+  /usage:
+    get:
+      operationId: getUsage
+      tags: [research]
+      summary: Get the current user's daily usage quota
+      description: Returns how many research reports have been run today out of the daily limit, plus when the counter resets (UTC)
+      responses:
+        "200":
+          description: Daily usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyUsage"
   /research/sources:
     get:
       operationId: listSources
@@ -421,6 +436,18 @@ components:
         progress:
           type: number
       required: [type, title, source, progress]
+    DailyUsage:
+      type: object
+      properties:
+        reportsToday:
+          type: number
+        tokensToday:
+          type: number
+        dailyLimit:
+          type: number
+        resetsAt:
+          type: string
+      required: [reportsToday, tokensToday, dailyLimit, resetsAt]
     ResearchSource:
       type: object
       properties:

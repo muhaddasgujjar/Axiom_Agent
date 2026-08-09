@@ -4,12 +4,12 @@ import {
   ArrowLeft, ArrowUpRight, BookOpen, BrainCircuit, Check, ChevronRight, CircleHelp,
   Clock3, FileCheck2, FileSearch, Filter, FlaskConical, Focus, GitBranch, Globe2,
   Layers3, Library, Link2, LockKeyhole, Menu, MoreVertical, PanelLeft, Pencil, Plus,
-  Search, ShieldCheck, Sparkles, Target, Trash2, X, Pause, Play, RefreshCw, AlertCircle, Download, LogOut,
+  Search, ShieldCheck, Sparkles, Target, Trash2, X, Pause, Play, RefreshCw, AlertCircle, Download, LogOut, Gauge,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams, useSearch, Router as WouterRouter } from 'wouter';
 import {
-  getGetResearchQueryKey, getGetWorkspaceSummaryQueryKey, getGetWorkspaceUsageQueryKey, getListResearchQueryKey, getListSourcesQueryKey,
-  useDeleteResearch, useGetResearch, useGetWorkspaceSummary, useGetWorkspaceUsage, useListResearch, useListSources, usePauseResearch, useStartResearch, useUpdateResearch,
+  getGetResearchQueryKey, getGetUsageQueryKey, getGetWorkspaceSummaryQueryKey, getGetWorkspaceUsageQueryKey, getListResearchQueryKey, getListSourcesQueryKey,
+  useDeleteResearch, useGetResearch, useGetUsage, useGetWorkspaceSummary, useGetWorkspaceUsage, useListResearch, useListSources, usePauseResearch, useStartResearch, useUpdateResearch,
 } from '@workspace/api-client-react';
 import type { Agent, Research, Source } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { WorkspacePrivacyModal } from '@/components/workspace-privacy-modal';
 import { ProfileModal } from '@/components/profile-modal';
+import { useToast } from '@/hooks/use-toast';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ function Shell({ children }: { children: ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: usage } = useGetWorkspaceUsage({ query: { queryKey: getGetWorkspaceUsageQueryKey(), staleTime: 15_000 } });
+  const { data: dailyUsage } = useGetUsage({ query: { queryKey: getGetUsageQueryKey(), staleTime: 15_000 } });
   const { user, signOut } = useAuth();
   const [location, navigate] = useLocation();
   const active = location.startsWith('/history') ? 'Research library' : location.startsWith('/sources') ? 'Source collections' : 'Workspace';
@@ -84,6 +86,7 @@ function Shell({ children }: { children: ReactNode }) {
           <header className="flex h-[76px] items-center justify-between border-b border-[#d8d8ce] bg-[#f7f6f1]/85 px-5 backdrop-blur sm:px-8">
             <div className="flex min-w-0 items-center gap-3"><button data-testid="button-toggle-sidebar" className="rounded-lg p-2 text-[#66716c] hover:bg-[#e8eae3]" onClick={() => { setOpen(true); setCollapsed(!collapsed); }}><Menu size={19} className="lg:hidden" /><PanelLeft size={17} className="hidden lg:block" /></button><span className="hidden text-[11px] text-[#89908a] sm:block">My workspace</span><span className="hidden text-[#b0b4ae] sm:block">/</span><span className="truncate text-[12px] font-medium text-[#364541]">{location.startsWith('/research/') ? 'Research workspace' : active}</span></div>
             <div className="flex items-center gap-2.5">
+              <span data-testid="badge-daily-usage" title="Daily research reports used today. Resets at midnight UTC." className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] md:flex ${(dailyUsage?.reportsToday ?? 0) >= (dailyUsage?.dailyLimit ?? 5) ? 'border-[#e2c6c1] bg-[#fbf2ef] text-[#9b544b]' : 'border-[#d8d8ce] bg-[#faf9f4] text-[#65706b]'}`}><Gauge size={12} />Reports today: {dailyUsage?.reportsToday ?? 0} / {dailyUsage?.dailyLimit ?? 5}</span>
               <form onSubmit={submitSearch} className="hidden sm:flex"><div className="flex items-center gap-2 rounded-lg border border-[#d3d5cc] bg-[#faf9f4] px-3 py-2 transition hover:border-[#9db9b0] focus-within:border-[#83a99e]"><Search size={14} className="text-[#7a847f]" /><input data-testid="input-search-workspace" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search workspace" className="w-40 bg-transparent text-[11px] text-[#344b46] outline-none placeholder:text-[#a0a8a1] lg:w-52" /></div></form>
               <DropdownMenu>
                 <DropdownMenuTrigger data-testid="avatar-user" aria-label="Account menu" className="grid size-8 place-items-center rounded-full bg-[#c5d8d0] text-[11px] font-semibold text-[#28564f] outline-none transition hover:ring-2 hover:ring-[#9db9b0]">{initials}</DropdownMenuTrigger>
@@ -120,9 +123,13 @@ function Home() {
   const [query, setQuery] = useState('');
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: researchList, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), staleTime: 30_000 } });
   const { data: summary } = useGetWorkspaceSummary({ query: { queryKey: getGetWorkspaceSummaryQueryKey(), staleTime: 30_000 } });
-  const start = useStartResearch();
+  const { data: dailyUsage } = useGetUsage({ query: { queryKey: getGetUsageQueryKey(), staleTime: 15_000 } });
+  const limitReached = (dailyUsage?.reportsToday ?? 0) >= (dailyUsage?.dailyLimit ?? 5);
+  const start = useStartResearch({ mutation: { retry: false } });
   useEffect(() => {
     if (search === 'new=1') {
       window.history.replaceState(null, '', window.location.pathname);
@@ -130,19 +137,29 @@ function Home() {
     }
   }, [search]);
   const submit = async () => {
-    if (query.trim().length < 10 || starting) return;
+    if (query.trim().length < 10 || starting || limitReached) return;
     setStarting(true);
     setStartError(false);
     start.mutate({ data: { query: query.trim() } }, {
-      onSuccess: (data) => setLocation(`/research/${data.research_id ?? data.id}`),
-      onError: () => setStartError(true),
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+        setLocation(`/research/${data.research_id ?? data.id}`);
+      },
+      onError: (err) => {
+        if ((err as { status?: number } | undefined)?.status === 429) {
+          toast({ title: 'Daily limit reached', description: 'Daily research limit reached. Check back tomorrow.', variant: 'destructive' });
+          queryClient.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+        } else {
+          setStartError(true);
+        }
+      },
       onSettled: () => setStarting(false),
     });
   };
   const recent = researchList?.slice(0, 3) ?? [];
   return <PageFrame>
     <div className="mx-auto max-w-[900px] pt-7 text-center sm:pt-12"><div className="mx-auto mb-5 grid size-11 place-items-center rounded-2xl bg-[#dceae5] text-[#315e58]"><Sparkles size={20} strokeWidth={1.6} /></div><Eyebrow>Private research instrument</Eyebrow><h1 className="mt-4 font-serif text-[clamp(42px,7vw,76px)] leading-[.94] tracking-[-.055em] text-[#24413d]">Find the answer<br /><em>behind</em> the answer.</h1><p className="mx-auto mt-6 max-w-[590px] text-[13px] leading-[1.7] text-[#65706b]">Axiom turns complex questions into a defensible research trail — with sources, claims, and the reasoning to connect them.</p>
-      <div className="mx-auto mt-9 max-w-[760px] rounded-2xl border border-[#cfd8d1] bg-[#faf9f4] p-2 text-left shadow-[0_14px_40px_rgba(38,58,53,.06)] focus-within:border-[#83a99e]"><textarea data-testid="input-research-query" ref={textareaRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }} placeholder="What would you like to understand?" rows={3} className="w-full resize-none bg-transparent px-4 py-3 text-[15px] leading-[1.5] text-[#344b46] outline-none placeholder:text-[#a0a8a1]" /><div className="flex items-center justify-between border-t border-[#e7e8e1] px-3 pt-2"><span className="font-mono text-[9px] text-[#9aa39c]">Be specific. Axiom will map the evidence.</span><Button data-testid="button-start-research" primary onClick={submit} disabled={query.trim().length < 10 || starting}>{starting ? 'Starting…' : <span className="flex items-center gap-2">Start research <ArrowUpRight size={14} /></span>}</Button></div></div>
+      <div className="mx-auto mt-9 max-w-[760px] rounded-2xl border border-[#cfd8d1] bg-[#faf9f4] p-2 text-left shadow-[0_14px_40px_rgba(38,58,53,.06)] focus-within:border-[#83a99e]"><textarea data-testid="input-research-query" ref={textareaRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }} placeholder={limitReached ? 'Daily research limit reached. Check back tomorrow.' : 'What would you like to understand?'} rows={3} className="w-full resize-none bg-transparent px-4 py-3 text-[15px] leading-[1.5] text-[#344b46] outline-none placeholder:text-[#a0a8a1]" /><div className="flex items-center justify-between border-t border-[#e7e8e1] px-3 pt-2"><span className="font-mono text-[9px] text-[#9aa39c]">{limitReached ? `${dailyUsage?.reportsToday ?? 0} of ${dailyUsage?.dailyLimit ?? 5} daily reports used` : 'Be specific. Axiom will map the evidence.'}</span><Button data-testid="button-start-research" primary onClick={submit} disabled={query.trim().length < 10 || starting || limitReached}>{starting ? 'Starting…' : <span className="flex items-center gap-2">Start research <ArrowUpRight size={14} /></span>}</Button></div></div>
       {startError && <p role="alert" data-testid="status-create-error" className="mt-3 text-[11px] text-[#9b544b]">Could not start research. Please try again.</p>}
       <div className="mt-5 flex flex-wrap justify-center gap-2"><span className="rounded-full bg-[#e8f0eb] px-3 py-1.5 font-mono text-[9px] text-[#5a7a70]">Policy & markets</span><span className="rounded-full bg-[#eee5f3] px-3 py-1.5 font-mono text-[9px] text-[#6d5d7b]">Technology shifts</span><span className="rounded-full bg-[#f1e8d8] px-3 py-1.5 font-mono text-[9px] text-[#8a6a4a]">Evidence reviews</span></div>
     </div>
