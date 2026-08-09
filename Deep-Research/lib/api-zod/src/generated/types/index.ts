@@ -8,10 +8,16 @@
 
 export * from './agent';
 export * from './agentStatus';
+export * from './deleteResearchResult';
 export * from './healthStatus';
+export * from './purgeCacheResult';
 export * from './recentResearch';
 export * from './research';
 export * from './researchInput';
 export * from './researchStatus';
+export * from './researchUpdateInput';
 export * from './source';
+export * from './startedResearch';
+export * from './startedResearchStatus';
 export * from './workspaceSummary';
+export * from './workspaceUsage';

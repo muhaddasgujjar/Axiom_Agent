@@ -14,6 +14,28 @@ export interface ResearchInput {
   query: string;
 }
 
+export type StartedResearchStatus = typeof StartedResearchStatus[keyof typeof StartedResearchStatus];
+
+
+export const StartedResearchStatus = {
+  planning: 'planning',
+  searching: 'searching',
+  reading: 'reading',
+  synthesizing: 'synthesizing',
+  verifying: 'verifying',
+  formatting: 'formatting',
+  done: 'done',
+  paused: 'paused',
+  failed: 'failed',
+} as const;
+
+export interface StartedResearch {
+  research_id: string;
+  id: string;
+  query: string;
+  status: StartedResearchStatus;
+}
+
 export type AgentStatus = typeof AgentStatus[keyof typeof AgentStatus];
 
 
@@ -83,5 +105,31 @@ export interface WorkspaceSummary {
   completedReports: number;
   sourcesRead: number;
   contextUsed: number;
+}
+
+export interface ResearchUpdateInput {
+  /** @minLength 1 */
+  query: string;
+}
+
+export interface DeleteResearchResult {
+  ok: boolean;
+}
+
+export interface WorkspaceUsage {
+  totalTokensUsed: number;
+  totalSourcesIndexed: number;
+  totalReports: number;
+  maxContextLimit: number;
+  usedContextPct: number;
+}
+
+export interface PurgeCacheResult {
+  purgedThreads: number;
+  totalTokensUsed: number;
+  totalSourcesIndexed: number;
+  totalReports: number;
+  maxContextLimit: number;
+  usedContextPct: number;
 }
 

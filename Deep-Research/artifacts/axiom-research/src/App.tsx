@@ -1,20 +1,31 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ArrowUpRight, BookOpen, BrainCircuit, Check, ChevronRight, CircleHelp,
   Clock3, FileCheck2, FileSearch, Filter, FlaskConical, Focus, GitBranch, Globe2,
-  Layers3, Library, Link2, LockKeyhole, Menu, PanelLeft, Plus, Search, ShieldCheck,
-  Sparkles, Target, X, Pause, Play, RefreshCw, AlertCircle, Download,
+  Layers3, Library, Link2, LockKeyhole, Menu, MoreVertical, PanelLeft, Pencil, Plus,
+  Search, ShieldCheck, Sparkles, Target, Trash2, X, Pause, Play, RefreshCw, AlertCircle, Download,
 } from 'lucide-react';
-import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
+import { Link, Route, Switch, useLocation, useParams, useSearch, Router as WouterRouter } from 'wouter';
 import {
-  getGetResearchQueryKey, getGetWorkspaceSummaryQueryKey, getListResearchQueryKey,
-  useGetResearch, useGetWorkspaceSummary, useListResearch, usePauseResearch,
+  getGetResearchQueryKey, getGetWorkspaceSummaryQueryKey, getGetWorkspaceUsageQueryKey, getListResearchQueryKey,
+  useDeleteResearch, useGetResearch, useGetWorkspaceSummary, useGetWorkspaceUsage, useListResearch, usePauseResearch, useUpdateResearch,
 } from '@workspace/api-client-react';
 import type { Agent, Research, Source } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { WorkspacePrivacyModal } from '@/components/workspace-privacy-modal';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -25,7 +36,8 @@ const agentTones = ['bg-[#d5e6e1] text-[#23665d]', 'bg-[#e6ddf0] text-[#654a78]'
 function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
-  const { data: summary } = useGetWorkspaceSummary({ query: { queryKey: getGetWorkspaceSummaryQueryKey(), staleTime: 30_000 } });
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const { data: usage } = useGetWorkspaceUsage({ query: { queryKey: getGetWorkspaceUsageQueryKey(), staleTime: 15_000 } });
   const [location] = useLocation();
   const active = location.startsWith('/history') ? 'Research library' : location.startsWith('/sources') ? 'Source collections' : 'Workspace';
   return (
@@ -37,14 +49,14 @@ function Shell({ children }: { children: ReactNode }) {
             <div><p className="font-serif text-[17px] leading-none tracking-[-.02em] text-[#214e4a]">Axiom</p><p className="mt-1 font-mono text-[8px] uppercase tracking-[.2em] text-[#78807b]">Research instrument</p></div>
             <button aria-label="Close navigation" data-testid="button-close-navigation" className="ml-auto lg:hidden" onClick={() => setOpen(false)}><X size={16} /></button>
           </div>
-          <div className="px-4 py-5"><Link href="/" data-testid="link-new-research" className="flex w-full items-center justify-between rounded-xl bg-[#214e4a] px-3.5 py-3 text-left text-[#f5f3eb] shadow-[0_5px_15px_rgba(33,78,74,.14)] transition hover:bg-[#173d3a]"><span className="flex items-center gap-2.5 text-[12px] font-medium"><Plus size={15} /> New research</span><span className="font-mono text-[9px] text-[#b8d0ca]">⌘ K</span></Link></div>
+          <div className="px-4 py-5"><Link href="/?new=1" data-testid="link-new-research" className="flex w-full items-center justify-between rounded-xl bg-[#214e4a] px-3.5 py-3 text-left text-[#f5f3eb] shadow-[0_5px_15px_rgba(33,78,74,.14)] transition hover:bg-[#173d3a]"><span className="flex items-center gap-2.5 text-[12px] font-medium"><Plus size={15} /> New research</span><span className="font-mono text-[9px] text-[#b8d0ca]">⌘ K</span></Link></div>
           <nav className="space-y-1 px-3 text-[12px]">
             <NavItem href="/" active={active === 'Workspace'} icon={Focus} label="Workspace" />
             <NavItem href="/history" active={active === 'Research library'} icon={Library} label="Research library" />
             <NavItem href="/sources" active={active === 'Source collections'} icon={Layers3} label="Source collections" />
           </nav>
           <div className="mt-auto border-t border-[#d8d8ce] p-4">
-            <div className="rounded-xl border border-[#d4d8d0] bg-[#f5f4ee] p-3.5"><div className="mb-2 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.16em] text-[#7a847f]">Workspace privacy</span><LockKeyhole size={13} className="text-[#47756d]" /></div><p className="text-[11px] leading-[1.5] text-[#52605b]">Your sources and reports stay private to your workspace.</p><div className="mt-3 h-1 rounded-full bg-[#dfe5df]"><div className="h-full rounded-full bg-[#6e9b90]" style={{ width: `${Math.min(summary?.contextUsed ?? 38, 100)}%` }} /></div><p className="mt-2 font-mono text-[9px] text-[#89908a]">{summary?.contextUsed ?? 38}% of research context used</p></div>
+            <button data-testid="button-workspace-privacy" onClick={() => setPrivacyOpen(true)} className="w-full cursor-pointer rounded-xl border border-[#d4d8d0] bg-[#f5f4ee] p-3.5 text-left transition hover:border-[#9db9b0]"><div className="mb-2 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.16em] text-[#7a847f]">Workspace privacy</span><LockKeyhole size={13} className="text-[#47756d]" /></div><p className="text-[11px] leading-[1.5] text-[#52605b]">Your sources and reports stay private to your workspace.</p><div className="mt-3 h-1 rounded-full bg-[#dfe5df]"><div className="h-full rounded-full bg-[#6e9b90]" style={{ width: `${Math.min(usage?.usedContextPct ?? 0, 100)}%` }} /></div><p className="mt-2 font-mono text-[9px] text-[#89908a]">{usage?.usedContextPct ?? 0}% of research context used</p></button>
             <button data-testid="button-how-axiom-works" className="mt-4 flex items-center gap-2 px-2 text-[11px] text-[#65706c] hover:text-[#214e4a]"><CircleHelp size={14} /> How Axiom works</button>
           </div>
         </aside>
@@ -57,6 +69,7 @@ function Shell({ children }: { children: ReactNode }) {
           {children}
         </section>
       </div>
+      <WorkspacePrivacyModal open={privacyOpen} onOpenChange={setPrivacyOpen} />
     </main>
   );
 }
@@ -71,11 +84,19 @@ function Button({ children, primary = false, ...props }: React.ButtonHTMLAttribu
 
 function Home() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [query, setQuery] = useState('');
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(false);
   const { data: researchList, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), staleTime: 30_000 } });
   const { data: summary } = useGetWorkspaceSummary({ query: { queryKey: getGetWorkspaceSummaryQueryKey(), staleTime: 30_000 } });
+  useEffect(() => {
+    if (search === 'new=1') {
+      window.history.replaceState(null, '', window.location.pathname);
+      textareaRef.current?.focus();
+    }
+  }, [search]);
   const submit = async () => {
     if (query.trim().length < 10 || starting) return;
     setStarting(true);
@@ -94,7 +115,7 @@ function Home() {
   const recent = researchList?.slice(0, 3) ?? [];
   return <PageFrame>
     <div className="mx-auto max-w-[900px] pt-7 text-center sm:pt-12"><div className="mx-auto mb-5 grid size-11 place-items-center rounded-2xl bg-[#dceae5] text-[#315e58]"><Sparkles size={20} strokeWidth={1.6} /></div><Eyebrow>Private research instrument</Eyebrow><h1 className="mt-4 font-serif text-[clamp(42px,7vw,76px)] leading-[.94] tracking-[-.055em] text-[#24413d]">Find the answer<br /><em>behind</em> the answer.</h1><p className="mx-auto mt-6 max-w-[590px] text-[13px] leading-[1.7] text-[#65706b]">Axiom turns complex questions into a defensible research trail — with sources, claims, and the reasoning to connect them.</p>
-      <div className="mx-auto mt-9 max-w-[760px] rounded-2xl border border-[#cfd8d1] bg-[#faf9f4] p-2 text-left shadow-[0_14px_40px_rgba(38,58,53,.06)] focus-within:border-[#83a99e]"><textarea data-testid="input-research-query" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }} placeholder="What would you like to understand?" rows={3} className="w-full resize-none bg-transparent px-4 py-3 text-[15px] leading-[1.5] text-[#344b46] outline-none placeholder:text-[#a0a8a1]" /><div className="flex items-center justify-between border-t border-[#e7e8e1] px-3 pt-2"><span className="font-mono text-[9px] text-[#9aa39c]">Be specific. Axiom will map the evidence.</span><Button data-testid="button-start-research" primary onClick={submit} disabled={query.trim().length < 10 || starting}>{starting ? 'Starting…' : <span className="flex items-center gap-2">Start research <ArrowUpRight size={14} /></span>}</Button></div></div>
+      <div className="mx-auto mt-9 max-w-[760px] rounded-2xl border border-[#cfd8d1] bg-[#faf9f4] p-2 text-left shadow-[0_14px_40px_rgba(38,58,53,.06)] focus-within:border-[#83a99e]"><textarea data-testid="input-research-query" ref={textareaRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }} placeholder="What would you like to understand?" rows={3} className="w-full resize-none bg-transparent px-4 py-3 text-[15px] leading-[1.5] text-[#344b46] outline-none placeholder:text-[#a0a8a1]" /><div className="flex items-center justify-between border-t border-[#e7e8e1] px-3 pt-2"><span className="font-mono text-[9px] text-[#9aa39c]">Be specific. Axiom will map the evidence.</span><Button data-testid="button-start-research" primary onClick={submit} disabled={query.trim().length < 10 || starting}>{starting ? 'Starting…' : <span className="flex items-center gap-2">Start research <ArrowUpRight size={14} /></span>}</Button></div></div>
       {startError && <p role="alert" data-testid="status-create-error" className="mt-3 text-[11px] text-[#9b544b]">Could not start research. Please try again.</p>}
       <div className="mt-5 flex flex-wrap justify-center gap-2"><span className="rounded-full bg-[#e8f0eb] px-3 py-1.5 font-mono text-[9px] text-[#5a7a70]">Policy & markets</span><span className="rounded-full bg-[#eee5f3] px-3 py-1.5 font-mono text-[9px] text-[#6d5d7b]">Technology shifts</span><span className="rounded-full bg-[#f1e8d8] px-3 py-1.5 font-mono text-[9px] text-[#8a6a4a]">Evidence reviews</span></div>
     </div>
@@ -109,7 +130,10 @@ function Stat({ label, value }: { label: string; value: number }) { return <div 
 function SkeletonRows() { return <div className="grid gap-3 md:grid-cols-3">{[1, 2, 3].map(i => <div key={i} className="h-28 animate-pulse rounded-xl border border-[#e3e4dd] bg-[#ecece5]" />)}</div>; }
 function ErrorState({ onRetry }: { onRetry: () => void }) { return <div className="flex items-center justify-between rounded-xl border border-[#e2c6c1] bg-[#fbf2ef] p-4 text-[12px] text-[#84534c]"><span className="flex items-center gap-2"><AlertCircle size={15} /> Context could not be loaded.</span><button data-testid="button-retry" onClick={onRetry} className="flex items-center gap-1 font-medium"><RefreshCw size={13} /> Retry</button></div>; }
 function EmptyState() { return <div className="rounded-xl border border-dashed border-[#cbd4cc] bg-[#f8f7f2] p-8 text-center"><FileSearch className="mx-auto text-[#7d9b92]" size={23} /><p className="mt-3 text-[12px] font-medium text-[#52615b]">Your trail starts here.</p><p className="mt-1 text-[11px] text-[#89918a]">Start a research question to build a private evidence record.</p></div>; }
-function ResearchCard({ item }: { item: Research }) { return <Link href={`/research/${item.id}`} data-testid={`card-research-${item.id}`} className="group rounded-xl border border-[#d7dbd3] bg-[#faf9f4] p-4 transition hover:-translate-y-0.5 hover:border-[#9db9b0]"><div className="flex items-start justify-between gap-3"><div className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#e3eee9] text-[#50726a]"><FileCheck2 size={14} /></div><span className="font-mono text-[9px] uppercase tracking-[.1em] text-[#7b8a83]">{item.status === 'done' ? 'Completed' : item.status}</span></div><p className="mt-3 line-clamp-2 text-[12px] font-medium leading-[1.4] text-[#40534d]">{item.query}</p><p className="mt-2 font-mono text-[9px] text-[#89918a]">{item.sourcesCount} sources · {item.elapsedMinutes} min</p></Link>; }
+function ResearchCard({ item, onRename, onDelete }: { item: Research; onRename?: (item: Research) => void; onDelete?: (item: Research) => void }) {
+  const manage = !!onRename && !!onDelete;
+  return <div data-testid={`card-research-${item.id}`} className={`group relative rounded-xl border border-[#d7dbd3] bg-[#faf9f4] p-4 transition ${manage ? '' : 'hover:-translate-y-0.5 '}hover:border-[#9db9b0]`}><Link href={`/research/${item.id}`} className="block"><div className="flex items-start justify-between gap-3"><div className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#e3eee9] text-[#50726a]"><FileCheck2 size={14} /></div><div className="flex items-center gap-3"><span className="font-mono text-[9px] uppercase tracking-[.1em] text-[#7b8a83]">{item.status === 'done' ? 'Completed' : item.status}</span>{manage && <DropdownMenu><DropdownMenuTrigger data-testid={`button-card-menu-${item.id}`} aria-label={`Actions for ${item.query}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }} className="grid size-7 place-items-center rounded-lg border border-transparent text-[#8b958f] transition hover:border-[#cfd4cc] hover:bg-[#f0f1eb]"><MoreVertical size={15} /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem data-testid={`button-card-rename-${item.id}`} onClick={e => { e.stopPropagation(); onRename(item); }}><Pencil size={13} /> Rename research</DropdownMenuItem><DropdownMenuItem data-testid={`button-card-delete-${item.id}`} onClick={e => { e.stopPropagation(); onDelete(item); }} className="text-[#9b544b]"><Trash2 size={13} /> Delete research</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div></div><p className="mt-3 line-clamp-2 text-[12px] font-medium leading-[1.4] text-[#40534d]">{item.query}</p><p className="mt-2 font-mono text-[9px] text-[#89918a]">{item.sourcesCount} sources · {item.elapsedMinutes} min</p></Link></div>;
+}
 
 function ResearchPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -274,7 +298,57 @@ function Report({ item }: { item: Research }) {
   const body = item.report || item.summary;
   return <section data-testid="panel-completed-report" className="rounded-2xl border border-[#d7dbd3] bg-[#faf9f4] p-5 sm:p-8"><div className="flex items-start justify-between gap-3"><div><Eyebrow>Defensible report</Eyebrow><h2 className="mt-2 font-serif text-[28px] text-[#29534a]">The evidence, assembled</h2></div><span className="flex items-center gap-1 rounded-full bg-[#dceae5] px-2.5 py-1 font-mono text-[9px] uppercase text-[#3f756b]"><Check size={12} /> Verified</span></div>{body ? <div id="report-container" className="prose prose-lg prose-indigo max-w-none text-slate-800 mt-6"><MarkdownReport text={body} /></div> : <p className="mt-6 text-[13px] leading-[1.75] text-[#52615b]">The completed report is ready for review.</p>}<div className="mt-7 flex flex-wrap gap-3 border-t border-[#e4e5de] pt-5 text-[10px] text-[#7a847f]"><span>{item.sourcesCount} sources</span><span>{item.claimsChecked} claims checked</span><span>{item.verificationScore}% confidence</span></div></section>; }
 
-function History() { const { data, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), refetchInterval: 5000 } }); return <PageFrame><div className="flex flex-col justify-between gap-4 border-b border-[#d8d8ce] pb-7 sm:flex-row sm:items-end"><div><Eyebrow>Research library</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">Your research trail</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Every question, source, and checked claim in one private record.</p></div><Link href="/" data-testid="link-start-new-from-history" className="flex items-center justify-center gap-2 rounded-lg bg-[#214e4a] px-3.5 py-2.5 text-[11px] font-medium text-[#f5f3eb]"><Plus size={14} /> New research</Link></div>{isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !data?.length ? <div className="mt-7"><EmptyState /></div> : <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{data.map(item => <ResearchCard key={item.id} item={item} />)}</div>}</PageFrame>; }
+function History() {
+  const { data, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), refetchInterval: 5000 } });
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'done' | 'running' | 'paused' | 'failed'>('all');
+  const [renameTarget, setRenameTarget] = useState<Research | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Research | null>(null);
+  const rename = useUpdateResearch();
+  const remove = useDeleteResearch();
+
+  const confirmRename = () => {
+    if (!renameTarget) return;
+    const next = renameValue.trim();
+    rename.mutate({ id: renameTarget.id, data: { query: next } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListResearchQueryKey() });
+        queryClient.setQueryData(getGetResearchQueryKey(renameTarget.id), prev => prev ? { ...prev, query: next } : prev);
+        setRenameTarget(null);
+      },
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    remove.mutate({ id: deleteTarget.id }, {
+      onSuccess: () => {
+        queryClient.setQueryData<Research[]>(getListResearchQueryKey(), prev => prev?.filter(item => item.id !== deleteTarget.id) ?? prev);
+        queryClient.removeQueries({ queryKey: getGetResearchQueryKey(deleteTarget.id) });
+        queryClient.invalidateQueries({ queryKey: getListResearchQueryKey() });
+        setDeleteTarget(null);
+      },
+    });
+  };
+
+  const term = search.trim().toLowerCase();
+  const filtered = (data ?? []).filter(item => {
+    const statusMatch = statusFilter === 'all' || item.status === statusFilter;
+    const queryMatch = !term || item.query.toLowerCase().includes(term) || (item.summary ?? '').toLowerCase().includes(term);
+    return statusMatch && queryMatch;
+  });
+  const statuses: Array<{ key: 'all' | 'done' | 'running' | 'paused' | 'failed'; label: string }> = [
+    { key: 'all', label: 'All' }, { key: 'done', label: 'Completed' }, { key: 'running', label: 'In progress' }, { key: 'paused', label: 'Paused' }, { key: 'failed', label: 'Failed' },
+  ];
+
+  return <PageFrame><div className="border-b border-[#d8d8ce] pb-7"><Eyebrow>Research library</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">Your research trail</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Every question, source, and checked claim in one private record.</p><div className="mt-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div className="flex max-w-md items-center gap-2 rounded-xl border border-[#d3d5cc] bg-[#faf9f4] px-3 py-2.5"><Search size={14} className="text-[#7a847f]" /><input data-testid="input-research-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by question or summary…" className="w-full bg-transparent text-[12px] text-[#344b46] outline-none placeholder:text-[#a0a8a1]" />{search && <button data-testid="button-clear-search" onClick={() => setSearch('')}><X size={13} className="text-[#9aa39c] hover:text-[#214e4a]" /></button>}</div><Link href="/?new=1" data-testid="link-start-new-from-history" className="flex items-center justify-center gap-2 rounded-lg bg-[#214e4a] px-3.5 py-2.5 text-[11px] font-medium text-[#f5f3eb]"><Plus size={14} /> New research</Link></div><div className="mt-4 flex flex-wrap gap-2">{statuses.map(s => <button key={s.key} data-testid={`filter-status-${s.key}`} onClick={() => setStatusFilter(s.key)} className={`rounded-full px-3 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] transition ${statusFilter === s.key ? 'bg-[#214e4a] text-[#f5f3eb]' : 'bg-[#eef0e9] text-[#6b7872] hover:bg-[#e3e6de]'}`}>{s.label}</button>)}</div></div>
+    {isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !data?.length ? <div className="mt-7"><EmptyState /></div> : filtered.length === 0 ? <div className="mt-7 rounded-xl border border-dashed border-[#cbd4cc] bg-[#f8f7f2] p-8 text-center"><FileSearch className="mx-auto text-[#7d9b92]" size={23} /><p className="mt-3 text-[12px] font-medium text-[#52615b]">No research matches your search.</p><p className="mt-1 text-[11px] text-[#89918a]">Try a different term or clear the status filter.</p></div> : <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map(item => <ResearchCard key={item.id} item={item} onRename={setRenameTarget} onDelete={setDeleteTarget} />)}</div>}
+    <Dialog open={!!renameTarget} onOpenChange={open => { if (!open) setRenameTarget(null); }}><DialogContent className="max-w-[420px] border-[#d7dbd3] bg-[#faf9f4] sm:max-w-[440px]"><DialogHeader><DialogTitle className="font-serif text-xl tracking-[-.02em] text-[#24413d]">Rename research</DialogTitle><DialogDescription className="text-[11px] text-[#65706b]">Give this question a clearer label for your trail.</DialogDescription></DialogHeader><textarea data-testid="input-rename-title" value={renameValue} onChange={e => setRenameValue(e.target.value)} rows={3} className="w-full resize-none rounded-xl border border-[#d3d5cc] bg-[#fffefb] px-3.5 py-3 text-[13px] leading-[1.5] text-[#344b46] outline-none focus:border-[#83a99e]" />{rename.isError && <p className="text-[10px] text-[#9b544b]">Could not rename research. Please try again.</p>}<DialogFooter><Button data-testid="button-cancel-rename" onClick={() => setRenameTarget(null)}>Cancel</Button><Button data-testid="button-confirm-rename" primary onClick={confirmRename} disabled={rename.isPending || renameValue.trim().length === 0}>{rename.isPending ? 'Saving…' : 'Save'}</Button></DialogFooter></DialogContent></Dialog>
+    <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}><AlertDialogContent className="max-w-[420px] border-[#e2c6c1] bg-[#faf9f4]"><AlertDialogHeader><AlertDialogTitle className="font-serif text-xl tracking-[-.02em] text-[#24413d]">Delete research?</AlertDialogTitle><AlertDialogDescription className="text-[11px] leading-[1.6] text-[#65706b]">This permanently removes the research trail{deleteTarget ? <span> for <span className="font-medium text-[#40534d]">"{deleteTarget.query}"</span></span> : null}. Your source records and this report cannot be restored.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel><AlertDialogAction data-testid="button-confirm-delete" onClick={e => { e.preventDefault(); confirmDelete(); }} className="bg-[#9b544b] text-white hover:bg-[#84443c]">{remove.isPending ? 'Deleting…' : 'Delete research'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+  </PageFrame>;
+}
 
 function Sources() { const { data: list, isLoading, isError, refetch } = useListResearch({ query: { queryKey: getListResearchQueryKey(), staleTime: 30_000 } }); const sources = (list ?? []).flatMap(r => r.sources.map(s => ({ ...s, researchId: r.id, researchQuery: r.query }))); return <PageFrame><div className="border-b border-[#d8d8ce] pb-7"><Eyebrow>Source collections</Eyebrow><h1 className="mt-2 font-serif text-[clamp(38px,5vw,58px)] leading-none tracking-[-.05em] text-[#24413d]">The evidence shelf</h1><p className="mt-3 max-w-[540px] text-[13px] text-[#65706b]">Documents Axiom has read across your private research context.</p></div>{isLoading ? <div className="mt-7"><SkeletonRows /></div> : isError ? <div className="mt-7"><ErrorState onRetry={() => refetch()} /></div> : !sources.length ? <div className="mt-7"><EmptyState /></div> : <div className="mt-7 grid gap-3 md:grid-cols-2">{sources.map((source, i) => <Link href={`/research/${source.researchId}`} data-testid={`card-source-${i}`} key={`${source.researchId}-${source.title}-${i}`} className="group rounded-xl border border-[#d7dbd3] bg-[#faf9f4] p-5 transition hover:border-[#9db9b0]"><div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.14em] text-[#7a847f]">{source.type}</span><span className="font-mono text-[10px] text-[#77837c]">{source.progress}% read</span></div><h2 className="mt-3 text-[14px] font-medium leading-[1.4] text-[#3c514b]">{source.title}</h2><p className="mt-1 text-[11px] text-[#89918a]">{source.source}</p><div className="mt-4 h-1 rounded-full bg-[#e4e8e2]"><div className="h-full rounded-full bg-[#78a69b]" style={{ width: `${source.progress}%` }} /></div><p className="mt-3 line-clamp-1 text-[10px] text-[#9aa39c]">From: {source.researchQuery}</p></Link>)}</div>}</PageFrame>; }
 

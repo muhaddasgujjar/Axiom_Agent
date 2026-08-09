@@ -80,6 +80,44 @@ paths:
                 $ref: "#/components/schemas/Research"
         "404":
           description: Research job not found
+    patch:
+      operationId: updateResearch
+      tags: [research]
+      summary: Rename a research job
+      description: Updates the research question/title of an existing research job
+      parameters:
+        - $ref: "#/components/parameters/ResearchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchUpdateInput"
+      responses:
+        "200":
+          description: Updated research job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Research"
+        "404":
+          description: Research job not found
+    delete:
+      operationId: deleteResearch
+      tags: [research]
+      summary: Delete a research job
+      description: Deletes a research job, its synthesized sections, and associated source trails from the database
+      parameters:
+        - $ref: "#/components/parameters/ResearchId"
+      responses:
+        "200":
+          description: Research job deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResearchResult"
+        "404":
+          description: Research job not found
   /research/{id}/pause:
     post:
       operationId: pauseResearch
@@ -96,6 +134,32 @@ paths:
                 $ref: "#/components/schemas/Research"
         "404":
           description: Research job not found
+  /workspace/usage:
+    get:
+      operationId: getWorkspaceUsage
+      tags: [research]
+      summary: Get workspace context usage
+      description: Returns context usage across the workspace, including report tokens and cached scraped content
+      responses:
+        "200":
+          description: Workspace usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceUsage"
+  /workspace/purge-cache:
+    post:
+      operationId: purgeWorkspaceCache
+      tags: [research]
+      summary: Purge inactive workspace cache
+      description: Clears temporary scraped HTML buffers for inactive research jobs and returns refreshed usage
+      responses:
+        "200":
+          description: Purged workspace cache
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurgeCacheResult"
   /workspace/summary:
     get:
       operationId: getWorkspaceSummary
@@ -257,4 +321,49 @@ components:
         contextUsed:
           type: number
       required: [activeResearch, completedReports, sourcesRead, contextUsed]
+    ResearchUpdateInput:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+      required:
+        - query
+    DeleteResearchResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    WorkspaceUsage:
+      type: object
+      properties:
+        totalTokensUsed:
+          type: number
+        totalSourcesIndexed:
+          type: number
+        totalReports:
+          type: number
+        maxContextLimit:
+          type: number
+        usedContextPct:
+          type: number
+      required: [totalTokensUsed, totalSourcesIndexed, totalReports, maxContextLimit, usedContextPct]
+    PurgeCacheResult:
+      type: object
+      properties:
+        purgedThreads:
+          type: number
+        totalTokensUsed:
+          type: number
+        totalSourcesIndexed:
+          type: number
+        totalReports:
+          type: number
+        maxContextLimit:
+          type: number
+        usedContextPct:
+          type: number
+      required: [purgedThreads, totalTokensUsed, totalSourcesIndexed, totalReports, maxContextLimit, usedContextPct]
 

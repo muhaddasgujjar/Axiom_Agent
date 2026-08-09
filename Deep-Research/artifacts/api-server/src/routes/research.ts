@@ -2,13 +2,20 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, researchTable, type ResearchAgent, type ResearchRecent, type ResearchSource } from "@workspace/db";
 import {
-  CreateResearchBody,
+  DeleteResearchParams,
+  DeleteResearchResponse,
   GetResearchParams,
   GetResearchResponse,
   GetWorkspaceSummaryResponse,
+  GetWorkspaceUsageResponse,
   ListResearchResponse,
   PauseResearchParams,
   PauseResearchResponse,
+  PurgeWorkspaceCacheResponse,
+  StartResearchBody,
+  UpdateResearchBody,
+  UpdateResearchParams,
+  UpdateResearchResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
@@ -307,6 +314,23 @@ async function proxyGetResearch(id: string): Promise<BackendState | null> {
   return pythonFetch<BackendState>(`/research/${encodeURIComponent(id)}`);
 }
 
+async function computeWorkspaceUsage() {
+  const rows = await db.select().from(researchTable);
+  const doneRows = rows.filter((row) => row.status === "done");
+  const maxContextLimit = Number(process.env["WORKSPACE_MAX_CONTEXT_TOKENS"] ?? 1_000_000);
+  const reportTokens = rows.reduce((total, row) => total + Math.floor(((row.report?.length ?? 0) + (row.summary?.length ?? 0)) / 4), 0);
+  const cache = await pythonFetch<{ threads?: Array<{ thread_id: string; cached_tokens: number }>; total_cached_tokens?: number }>("/workspace/cache");
+  const cacheTokens = cache?.threads?.reduce((total, t) => total + (t.cached_tokens ?? 0), 0) ?? cache?.total_cached_tokens ?? 0;
+  const totalTokensUsed = reportTokens + cacheTokens;
+  return {
+    totalTokensUsed,
+    totalSourcesIndexed: rows.reduce((total, row) => total + row.sourcesCount, 0),
+    totalReports: doneRows.length,
+    maxContextLimit,
+    usedContextPct: Math.min(100, Math.max(0, Math.round((totalTokensUsed / Math.max(1, maxContextLimit)) * 100))),
+  };
+}
+
 router.get("/research", async (req, res): Promise<void> => {
   await ensureSeeded();
   const rows = await db.select().from(researchTable).orderBy(desc(researchTable.createdAt));
@@ -317,7 +341,7 @@ router.get("/research", async (req, res): Promise<void> => {
 });
 
 async function startResearchProxy(req: Request, res: Response): Promise<void> {
-  const parsed = CreateResearchBody.safeParse(req.body);
+  const parsed = StartResearchBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ errors: parsed.error.message }, "Invalid research request");
     res.status(400).json({ error: parsed.error.message });
@@ -421,14 +445,78 @@ router.post("/research/:id/pause", async (req, res): Promise<void> => {
   res.json(PauseResearchResponse.parse(response));
 });
 
+router.patch("/research/:id", async (req, res): Promise<void> => {
+  const params = UpdateResearchParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateResearchBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  await ensureSeeded();
+  const [existing] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Research job not found" });
+    return;
+  }
+  const query = body.data.query.trim();
+  const [updated] = await db.update(researchTable).set({ query, updatedAt: new Date() }).where(eq(researchTable.id, params.data.id)).returning();
+  await pythonFetch(`/research/${encodeURIComponent(params.data.id)}`, { method: "PATCH", body: JSON.stringify({ query }) });
+  req.log.info({ id: params.data.id }, "Renamed research job");
+  res.json(UpdateResearchResponse.parse(toApiResearch(updated, [])));
+});
+
+router.delete("/research/:id", async (req, res): Promise<void> => {
+  const params = DeleteResearchParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  await ensureSeeded();
+  const [existing] = await db.select().from(researchTable).where(eq(researchTable.id, params.data.id)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Research job not found" });
+    return;
+  }
+  const timer = researchTimers.get(params.data.id);
+  if (timer) clearInterval(timer);
+  researchTimers.delete(params.data.id);
+  pausedStages.delete(params.data.id);
+  await db.delete(researchTable).where(eq(researchTable.id, params.data.id));
+  await pythonFetch(`/research/${encodeURIComponent(params.data.id)}`, { method: "DELETE" });
+  req.log.info({ id: params.data.id }, "Deleted research job");
+  res.json(DeleteResearchResponse.parse({ ok: true }));
+});
+
+router.get("/workspace/usage", async (req, res): Promise<void> => {
+  await ensureSeeded();
+  const usage = await computeWorkspaceUsage();
+  req.log.info({ pct: usage.usedContextPct }, "Reported workspace usage");
+  res.json(GetWorkspaceUsageResponse.parse(usage));
+});
+
+router.post("/workspace/purge-cache", async (req, res): Promise<void> => {
+  await ensureSeeded();
+  const rows = await db.select({ id: researchTable.id, status: researchTable.status }).from(researchTable);
+  const inactiveIds = rows.filter((row) => row.status === "done" || row.status === "failed").map((row) => row.id);
+  const purged = await pythonFetch<{ purged_threads?: number }>("/workspace/purge", { method: "POST", body: JSON.stringify({ thread_ids: inactiveIds }) });
+  const usage = await computeWorkspaceUsage();
+  req.log.info({ purgedThreads: purged?.purged_threads ?? inactiveIds.length }, "Purged inactive workspace cache");
+  res.json(PurgeWorkspaceCacheResponse.parse({ purgedThreads: purged?.purged_threads ?? 0, ...usage }));
+});
+
 router.get("/workspace/summary", async (req, res): Promise<void> => {
   await ensureSeeded();
   const rows = await db.select().from(researchTable);
+  const usage = await computeWorkspaceUsage();
   const summary = {
     activeResearch: rows.filter((row) => !["done", "failed"].includes(row.status)).length,
     completedReports: rows.filter((row) => row.status === "done").length,
     sourcesRead: rows.reduce((total, row) => total + row.sourcesCount, 0),
-    contextUsed: 38,
+    contextUsed: usage.usedContextPct,
   };
   res.json(GetWorkspaceSummaryResponse.parse(summary));
 });

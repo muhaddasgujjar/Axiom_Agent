@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import os
+import sqlite3
 import time
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -193,6 +194,109 @@ async def get_research(job_id: str) -> ResearchStatusBody:
     if not job:
         raise HTTPException(status_code=404, detail="Research job not found")
     return ResearchStatusBody(**_job_to_response(job))
+
+
+class ResearchRenameBody(BaseModel):
+    query: str = Field(..., min_length=1)
+
+
+class PurgeCacheBody(BaseModel):
+    thread_ids: List[str] = []
+
+
+def _checkpoint_rows() -> List[Dict[str, Any]]:
+    try:
+        import ormsgpack
+    except ImportError:  # pragma: no cover
+        ormsgpack = None
+    conn = sqlite3.connect(CHECKPOINT_DB, timeout=10)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT c.thread_id, c.checkpoint FROM checkpoints c "
+            "JOIN (SELECT thread_id, MAX(rowid) AS mx FROM checkpoints GROUP BY thread_id) m "
+            "ON c.thread_id = m.thread_id AND c.rowid = m.mx"
+        )
+        rows = cur.fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        conn.close()
+
+    result: List[Dict[str, Any]] = []
+    for thread_id, blob in rows:
+        chars = 0
+        if ormsgpack is not None:
+            try:
+                data = ormsgpack.unpackb(bytes(blob))
+                values = (data or {}).get("channel_values", {}) or {}
+                for doc in values.get("extracted", []) or []:
+                    text = doc.get("full_text") or ""
+                    chars += len(text)
+            except Exception:  # noqa: BLE001
+                chars = len(bytes(blob))
+        else:
+            chars = len(bytes(blob))
+        result.append(
+            {
+                "thread_id": thread_id,
+                "cached_chars": chars,
+                "cached_tokens": chars // 4,
+            }
+        )
+    return result
+
+
+def _delete_thread_checkpoints(thread_ids: List[str]) -> int:
+    if not thread_ids:
+        return 0
+    conn = sqlite3.connect(CHECKPOINT_DB, timeout=10)
+    try:
+        cur = conn.cursor()
+        placeholders = ",".join("?" * len(thread_ids))
+        cur.execute(f"DELETE FROM checkpoints WHERE thread_id IN ({placeholders})", thread_ids)
+        purged = cur.rowcount
+        cur.execute(f"DELETE FROM writes WHERE thread_id IN ({placeholders})", thread_ids)
+        conn.commit()
+        return purged
+    finally:
+        conn.close()
+
+
+@app.patch("/research/{job_id}")
+def rename_research(job_id: str, body: ResearchRenameBody) -> Dict[str, Any]:
+    query = body.query.strip()
+    job = JOBS.get(job_id)
+    if job:
+        job["query"] = query
+        job.setdefault("state", {})["query"] = query
+    return {"ok": True, "research_id": job_id}
+
+
+@app.delete("/research/{job_id}")
+def delete_research(job_id: str) -> Dict[str, Any]:
+    JOBS.pop(job_id, None)
+    _delete_thread_checkpoints([job_id])
+    logger.info("research job %s removed from workspace cache", job_id)
+    return {"ok": True, "research_id": job_id}
+
+
+@app.get("/workspace/cache")
+def workspace_cache() -> Dict[str, Any]:
+    threads = _checkpoint_rows()
+    total_chars = sum(thread["cached_chars"] for thread in threads)
+    total_tokens = sum(thread["cached_tokens"] for thread in threads)
+    return {
+        "threads": threads,
+        "total_cached_chars": total_chars,
+        "total_cached_tokens": total_tokens,
+    }
+
+
+@app.post("/workspace/purge")
+def purge_workspace_cache(body: PurgeCacheBody) -> Dict[str, Any]:
+    purged = _delete_thread_checkpoints(body.thread_ids)
+    return {"purged_threads": purged}
 
 
 if __name__ == "__main__":

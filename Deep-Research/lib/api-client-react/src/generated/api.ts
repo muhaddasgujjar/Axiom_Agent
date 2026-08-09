@@ -20,9 +20,15 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  DeleteResearchResult,
   HealthStatus,
+  PurgeCacheResult,
   Research,
-  WorkspaceSummary
+  ResearchInput,
+  ResearchUpdateInput,
+  StartedResearch,
+  WorkspaceSummary,
+  WorkspaceUsage
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -208,6 +214,78 @@ export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>
 
 
 
+export const getStartResearchUrl = () => {
+
+
+
+
+  return `/api/research/start`
+}
+
+/**
+ * Starts a research job through the Python research pipeline and records it in the workspace
+ * @summary Start a research job
+ */
+export const startResearch = async (researchInput: ResearchInput, options?: Parameters<typeof customFetch>[1]): Promise<StartedResearch> => {
+
+  return customFetch<StartedResearch>(getStartResearchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(researchInput)
+  }
+);}
+
+
+
+
+
+export const getStartResearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,{data: BodyType<ResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,{data: BodyType<ResearchInput>}, TContext> => {
+
+const mutationKey = ['startResearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startResearch>>, {data: BodyType<ResearchInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  startResearch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartResearchMutationResult = NonNullable<Awaited<ReturnType<typeof startResearch>>>
+    export type StartResearchMutationBody = BodyType<ResearchInput>
+    export type StartResearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Start a research job
+ */
+export const useStartResearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,{data: BodyType<ResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startResearch>>,
+        TError,
+        {data: BodyType<ResearchInput>},
+        TContext
+      > => {
+      return useMutation(getStartResearchMutationOptions(options));
+    }
+
 export const getGetResearchUrl = (id: string,) => {
 
 
@@ -285,6 +363,151 @@ export function useGetResearch<TData = Awaited<ReturnType<typeof getResearch>>, 
 
 
 
+export const getUpdateResearchUrl = (id: string,) => {
+
+
+
+
+  return `/api/research/${id}`
+}
+
+/**
+ * Updates the research question/title of an existing research job
+ * @summary Rename a research job
+ */
+export const updateResearch = async (id: string,
+    researchUpdateInput: ResearchUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<Research> => {
+
+  return customFetch<Research>(getUpdateResearchUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(researchUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateResearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearch>>, TError,{id: string;data: BodyType<ResearchUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResearch>>, TError,{id: string;data: BodyType<ResearchUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateResearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResearch>>, {id: string;data: BodyType<ResearchUpdateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateResearch(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateResearchMutationResult = NonNullable<Awaited<ReturnType<typeof updateResearch>>>
+    export type UpdateResearchMutationBody = BodyType<ResearchUpdateInput>
+    export type UpdateResearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Rename a research job
+ */
+export const useUpdateResearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearch>>, TError,{id: string;data: BodyType<ResearchUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateResearch>>,
+        TError,
+        {id: string;data: BodyType<ResearchUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateResearchMutationOptions(options));
+    }
+
+export const getDeleteResearchUrl = (id: string,) => {
+
+
+
+
+  return `/api/research/${id}`
+}
+
+/**
+ * Deletes a research job, its synthesized sections, and associated source trails from the database
+ * @summary Delete a research job
+ */
+export const deleteResearch = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<DeleteResearchResult> => {
+
+  return customFetch<DeleteResearchResult>(getDeleteResearchUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteResearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteResearch>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteResearch>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteResearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteResearch>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteResearch(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteResearchMutationResult = NonNullable<Awaited<ReturnType<typeof deleteResearch>>>
+
+    export type DeleteResearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a research job
+ */
+export const useDeleteResearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteResearch>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteResearch>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteResearchMutationOptions(options));
+    }
+
 export const getPauseResearchUrl = (id: string,) => {
 
 
@@ -354,6 +577,156 @@ export const usePauseResearch = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getPauseResearchMutationOptions(options));
+    }
+
+export const getGetWorkspaceUsageUrl = () => {
+
+
+
+
+  return `/api/workspace/usage`
+}
+
+/**
+ * Returns context usage across the workspace, including report tokens and cached scraped content
+ * @summary Get workspace context usage
+ */
+export const getWorkspaceUsage = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceUsage> => {
+
+  return customFetch<WorkspaceUsage>(getGetWorkspaceUsageUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkspaceUsageQueryKey = () => {
+    return [
+    `/api/workspace/usage`
+    ] as const;
+    }
+
+
+export const getGetWorkspaceUsageQueryOptions = <TData = Awaited<ReturnType<typeof getWorkspaceUsage>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkspaceUsageQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkspaceUsage>>> = ({ signal }) => getWorkspaceUsage({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceUsage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkspaceUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkspaceUsage>>>
+export type GetWorkspaceUsageQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get workspace context usage
+ */
+
+export function useGetWorkspaceUsage<TData = Awaited<ReturnType<typeof getWorkspaceUsage>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkspaceUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkspaceUsageQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPurgeWorkspaceCacheUrl = () => {
+
+
+
+
+  return `/api/workspace/purge-cache`
+}
+
+/**
+ * Clears temporary scraped HTML buffers for inactive research jobs and returns refreshed usage
+ * @summary Purge inactive workspace cache
+ */
+export const purgeWorkspaceCache = async ( options?: Parameters<typeof customFetch>[1]): Promise<PurgeCacheResult> => {
+
+  return customFetch<PurgeCacheResult>(getPurgeWorkspaceCacheUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPurgeWorkspaceCacheMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeWorkspaceCache>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeWorkspaceCache>>, TError,void, TContext> => {
+
+const mutationKey = ['purgeWorkspaceCache'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeWorkspaceCache>>, void> = () => {
+
+
+          return  purgeWorkspaceCache(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeWorkspaceCacheMutationResult = NonNullable<Awaited<ReturnType<typeof purgeWorkspaceCache>>>
+
+    export type PurgeWorkspaceCacheMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Purge inactive workspace cache
+ */
+export const usePurgeWorkspaceCache = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeWorkspaceCache>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purgeWorkspaceCache>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPurgeWorkspaceCacheMutationOptions(options));
     }
 
 export const getGetWorkspaceSummaryUrl = () => {

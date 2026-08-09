@@ -58,49 +58,22 @@ export const ListResearchResponse = zod.array(ListResearchResponseItem)
 
 
 /**
- * Creates a research job and starts its staged workspace simulation
+ * Starts a research job through the Python research pipeline and records it in the workspace
  * @summary Start a research job
  */
-export const createResearchBodyQueryMin = 10;
+export const startResearchBodyQueryMin = 10;
 
 
 
-export const CreateResearchBody = zod.object({
-  "query": zod.string().min(createResearchBodyQueryMin)
+export const StartResearchBody = zod.object({
+  "query": zod.string().min(startResearchBodyQueryMin)
 })
 
-export const CreateResearchResponse = zod.object({
+export const StartResearchResponse = zod.object({
+  "research_id": zod.string(),
   "id": zod.string(),
   "query": zod.string(),
-  "status": zod.enum(['planning', 'searching', 'reading', 'synthesizing', 'verifying', 'formatting', 'done', 'paused', 'failed']),
-  "progress": zod.number(),
-  "elapsedMinutes": zod.number(),
-  "verificationScore": zod.number(),
-  "sourcesCount": zod.number(),
-  "claimsChecked": zod.number(),
-  "agents": zod.array(zod.object({
-  "name": zod.string(),
-  "detail": zod.string(),
-  "count": zod.string(),
-  "status": zod.enum(['queued', 'active', 'done']),
-  "progress": zod.number()
-})),
-  "sources": zod.array(zod.object({
-  "type": zod.string(),
-  "title": zod.string(),
-  "source": zod.string(),
-  "progress": zod.number()
-})),
-  "recent": zod.array(zod.object({
-  "id": zod.string(),
-  "title": zod.string(),
-  "meta": zod.string(),
-  "status": zod.string()
-})),
-  "summary": zod.string(),
-  "report": zod.string(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
+  "status": zod.enum(['planning', 'searching', 'reading', 'synthesizing', 'verifying', 'formatting', 'done', 'paused', 'failed'])
 })
 
 
@@ -147,6 +120,69 @@ export const GetResearchResponse = zod.object({
 
 
 /**
+ * Updates the research question/title of an existing research job
+ * @summary Rename a research job
+ */
+export const UpdateResearchParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateResearchBody = zod.object({
+  "query": zod.string().min(1)
+})
+
+export const UpdateResearchResponse = zod.object({
+  "id": zod.string(),
+  "query": zod.string(),
+  "status": zod.enum(['planning', 'searching', 'reading', 'synthesizing', 'verifying', 'formatting', 'done', 'paused', 'failed']),
+  "progress": zod.number(),
+  "elapsedMinutes": zod.number(),
+  "verificationScore": zod.number(),
+  "sourcesCount": zod.number(),
+  "claimsChecked": zod.number(),
+  "agents": zod.array(zod.object({
+  "name": zod.string(),
+  "detail": zod.string(),
+  "count": zod.string(),
+  "status": zod.enum(['queued', 'active', 'done']),
+  "progress": zod.number()
+})),
+  "sources": zod.array(zod.object({
+  "type": zod.string(),
+  "title": zod.string(),
+  "source": zod.string(),
+  "progress": zod.number()
+})),
+  "recent": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "meta": zod.string(),
+  "status": zod.string()
+})),
+  "summary": zod.string(),
+  "report": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Deletes a research job, its synthesized sections, and associated source trails from the database
+ * @summary Delete a research job
+ */
+export const DeleteResearchParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteResearchResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary Pause or resume research
  */
 export const PauseResearchParams = zod.object({
@@ -185,6 +221,33 @@ export const PauseResearchResponse = zod.object({
   "report": zod.string(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
+})
+
+
+/**
+ * Returns context usage across the workspace, including report tokens and cached scraped content
+ * @summary Get workspace context usage
+ */
+export const GetWorkspaceUsageResponse = zod.object({
+  "totalTokensUsed": zod.number(),
+  "totalSourcesIndexed": zod.number(),
+  "totalReports": zod.number(),
+  "maxContextLimit": zod.number(),
+  "usedContextPct": zod.number()
+})
+
+
+/**
+ * Clears temporary scraped HTML buffers for inactive research jobs and returns refreshed usage
+ * @summary Purge inactive workspace cache
+ */
+export const PurgeWorkspaceCacheResponse = zod.object({
+  "purgedThreads": zod.number(),
+  "totalTokensUsed": zod.number(),
+  "totalSourcesIndexed": zod.number(),
+  "totalReports": zod.number(),
+  "maxContextLimit": zod.number(),
+  "usedContextPct": zod.number()
 })
 
 
