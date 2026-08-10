@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import { motion, MotionConfig } from 'framer-motion';
-import { ArrowUpRight, Check, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import AxiomLogo from '@/components/axiom-logo';
 import ThemeToggle from '@/components/theme-toggle';
 import SeoHead from '@/components/seo-head';
+import { useToast } from '@/hooks/use-toast';
+import { sendEmail } from '@/lib/email';
 
 const tiers = ['Researcher', 'Professional', 'Enterprise'];
 
@@ -42,15 +44,38 @@ const initialForm: FormState = { name: '', email: '', company: '', tier: '', mes
 export default function ContactPage() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedForm, setSubmittedForm] = useState<FormState>(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const update =
     (key: keyof FormState) =>
     (e: { target: { value: string } }) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      await sendEmail(import.meta.env.VITE_EMAILJS_TEMPLATE_CONTACT, {
+        name: form.name,
+        email: form.email,
+        company: form.company,
+        tier: form.tier,
+        message: form.message,
+      });
+      setSubmittedForm(form);
+      setForm(initialForm);
+      setSubmitted(true);
+      toast({ title: 'Message sent successfully. We will be in touch shortly.' });
+    } catch {
+      toast({
+        title: 'Failed to send message. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -159,14 +184,17 @@ export default function ContactPage() {
                       Request received
                     </h2>
                     <p className="mt-3 max-w-[360px] text-[13.5px] leading-[1.75] text-[var(--body)]">
-                      Thanks{form.name ? `, ${form.name}` : ''}. Our team will reach out to
-                      {form.email ? ` ${form.email}` : ' your inbox'} within one business day to
-                      scope your {form.tier.toLowerCase() || 'workspace'} deployment.
+                      Thanks{submittedForm.name ? `, ${submittedForm.name}` : ''}. Our team will
+                      reach out to
+                      {submittedForm.email ? ` ${submittedForm.email}` : ' your inbox'} within one
+                      business day to scope your {submittedForm.tier.toLowerCase() || 'workspace'}{' '}
+                      deployment.
                     </p>
                     <button
                       type="button"
                       onClick={() => {
                         setForm(initialForm);
+                        setSubmittedForm(initialForm);
                         setSubmitted(false);
                       }}
                       className="mt-8 inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-4 py-2.5 text-[12px] font-medium text-[var(--ink)] transition hover:border-[var(--accent)]"
@@ -285,9 +313,18 @@ export default function ContactPage() {
 
                     <button
                       type="submit"
-                      className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3.5 text-[14px] font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+                      disabled={isSubmitting}
+                      className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3.5 text-[14px] font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Send Request <ArrowUpRight size={16} strokeWidth={2} />
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" /> Sending…
+                        </>
+                      ) : (
+                        <>
+                          Send Request <ArrowUpRight size={16} strokeWidth={2} />
+                        </>
+                      )}
                     </button>
                     <p className="mt-3 text-center font-mono text-[9px] text-[var(--muted)]">
                       We respond within one business day

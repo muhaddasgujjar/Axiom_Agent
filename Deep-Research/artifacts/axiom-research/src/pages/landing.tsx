@@ -40,6 +40,7 @@ import ThemeToggle from '@/components/theme-toggle';
 import SeoHead, { SITE_DESCRIPTION, SITE_TITLE } from '@/components/seo-head';
 import { useToast } from '@/hooks/use-toast';
 import { faqItems } from '@/lib/faq';
+import { sendEmail } from '@/lib/email';
 
 const eyebrow = 'font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--muted)]';
 const citationBadge =
@@ -333,6 +334,7 @@ function HeroTeaser() {
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const [captured, setCaptured] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const timersRef = useRef<number[]>([]);
   const { toast } = useToast();
 
@@ -367,14 +369,29 @@ function HeroTeaser() {
     setCaptured(false);
   };
 
-  const submitEmail = (e: FormEvent) => {
+  const submitEmail = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    setCaptured(true);
-    toast({
-      title: 'Check your inbox',
-      description: 'Your citation-backed report is on its way, along with 5 free daily runs.',
-    });
+    if (!email.trim() || isCapturing) return;
+    setIsCapturing(true);
+    try {
+      await sendEmail(import.meta.env.VITE_EMAILJS_TEMPLATE_LEAD, {
+        email,
+        source: 'Hero Teaser',
+        query,
+      });
+      setCaptured(true);
+      toast({
+        title:
+          "Blueprint sent! Please check your spam folder if it doesn't arrive in 60 seconds.",
+      });
+    } catch {
+      toast({
+        title: 'Failed to send. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   const steps = [
@@ -501,9 +518,16 @@ function HeroTeaser() {
                       />
                       <button
                         type="submit"
-                        className="w-full whitespace-nowrap rounded-md bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] sm:w-auto"
+                        disabled={isCapturing}
+                        className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                       >
-                        Unlock Report
+                        {isCapturing ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" /> Unlocking…
+                          </>
+                        ) : (
+                          'Unlock Report'
+                        )}
                       </button>
                     </form>
                   </div>
@@ -738,16 +762,34 @@ function UseCaseTabs() {
 function LeadMagnet() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [sentTo, setSentTo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    setSubmitted(true);
-    toast({
-      title: 'Blueprint on its way',
-      description: 'Check your inbox for the Architecture Blueprint.',
-    });
+    if (!email.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await sendEmail(import.meta.env.VITE_EMAILJS_TEMPLATE_LEAD, {
+        email,
+        source: 'Footer Lead Magnet',
+      });
+      setSentTo(email);
+      setEmail('');
+      setSubmitted(true);
+      toast({
+        title:
+          "Blueprint sent! Please check your spam folder if it doesn't arrive in 60 seconds.",
+      });
+    } catch {
+      toast({
+        title: 'Failed to send. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -789,7 +831,7 @@ function LeadMagnet() {
           <div className="mx-auto mt-9 flex max-w-[480px] items-center justify-center gap-2.5 rounded-xl border border-[#3a5248] bg-[#243f38]/70 px-5 py-4">
             <Check size={16} className="shrink-0 text-[#5ec27c]" />
             <p className="text-[13px] text-[#f3efe2]">
-              Check {email} — the blueprint is on its way.
+              Check {sentTo} — the blueprint is on its way.
             </p>
           </div>
         ) : (
@@ -810,9 +852,18 @@ function LeadMagnet() {
             </div>
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f3efe2] px-6 py-3 text-[13.5px] font-semibold text-[#1b3832] transition hover:bg-white"
+              disabled={isSubmitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f3efe2] px-6 py-3 text-[13.5px] font-semibold text-[#1b3832] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Get the Blueprint <ArrowUpRight size={15} strokeWidth={2} />
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Sending…
+                </>
+              ) : (
+                <>
+                  Get the Blueprint <ArrowUpRight size={15} strokeWidth={2} />
+                </>
+              )}
             </button>
           </form>
         )}
