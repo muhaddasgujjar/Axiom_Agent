@@ -1,18 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
-import { motion, MotionConfig, type MotionProps, type Variants } from 'framer-motion';
+import {
+  AnimatePresence,
+  motion,
+  MotionConfig,
+  type MotionProps,
+  type Variants,
+} from 'framer-motion';
 import {
   ArrowUpRight,
+  BarChart3,
+  BookOpen,
   BrainCircuit,
   Check,
   Database,
+  Download,
   EyeOff,
   Globe2,
   Layers3,
+  Link2,
+  Loader2,
   LockKeyhole,
+  Mail,
   Quote,
+  Scale,
+  Search,
   ServerCog,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import {
   Accordion,
@@ -49,82 +64,108 @@ const sectionMotion: MotionProps = {
   transition: { duration: 0.6, ease: 'easeOut' },
 };
 
-function HeroVisual() {
+const heroKeywords = [
+  'Autonomous AI Deep Research & Evidence Engine',
+  'Autonomous AI Deep Research & Verified Research Agent',
+  'Autonomous AI Deep Research & Market Intelligence Copilot',
+  'Autonomous AI Deep Research & Citation-Backed Analyst',
+];
+
+function useTypewriter(phrases: string[]) {
+  const [index, setIndex] = useState(0);
+  const [text, setText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setText(phrases[0]);
+      return;
+    }
+    const phrase = phrases[index % phrases.length];
+    if (!deleting && text === phrase) {
+      const t = window.setTimeout(() => setDeleting(true), 2100);
+      return () => window.clearTimeout(t);
+    }
+    if (deleting && text === '') {
+      const t = window.setTimeout(() => {
+        setDeleting(false);
+        setIndex((i) => (i + 1) % phrases.length);
+      }, 500);
+      return () => window.clearTimeout(t);
+    }
+    const t = window.setTimeout(
+      () => setText(phrase.slice(0, text.length + (deleting ? -1 : 1))),
+      deleting ? 24 : 45,
+    );
+    return () => window.clearTimeout(t);
+  }, [text, deleting, index, phrases]);
+
+  return text;
+}
+
+function TypedHeadline() {
+  const typed = useTypewriter(heroKeywords);
   return (
-    <div className="relative mx-auto mt-16 max-w-[920px]">
-      <svg
-        className="absolute -inset-8 h-[calc(100%+4rem)] w-[calc(100%+4rem)] text-[var(--ink)]"
-        viewBox="0 0 920 460"
-        fill="none"
+    <span className="inline">
+      {typed}
+      <span
         aria-hidden="true"
-      >
-        <g stroke="currentColor" strokeOpacity="0.22" strokeWidth="1">
-          <line x1="60" y1="90" x2="460" y2="230" className="animate-axiom-glow" />
-          <line x1="860" y1="80" x2="460" y2="230" className="animate-axiom-glow" />
-          <line x1="80" y1="380" x2="460" y2="230" className="animate-axiom-glow" />
-          <line x1="840" y1="390" x2="460" y2="230" className="animate-axiom-glow" />
-        </g>
-        <g fill="currentColor" fillOpacity="0.55">
-          <circle cx="60" cy="90" r="3" className="animate-axiom-glow" />
-          <circle cx="860" cy="80" r="3" className="animate-axiom-glow" />
-          <circle cx="80" cy="380" r="3" className="animate-axiom-glow" />
-          <circle cx="840" cy="390" r="3" className="animate-axiom-glow" />
-        </g>
-        <g fill="#b98a4d">
-          <circle cx="320" cy="150" r="2.5" className="animate-axiom-glow" />
-          <circle cx="600" cy="320" r="2.5" className="animate-axiom-glow" />
-        </g>
-      </svg>
+        className="typed-caret ml-0.5 inline-block h-[0.9em] w-[3px] translate-y-[0.08em] rounded-full bg-[var(--accent)]"
+      />
+    </span>
+  );
+}
 
-      <div className="relative rounded-2xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] p-5 text-left shadow-[0_30px_80px_rgba(27,56,50,0.14)] sm:p-7">
-        <div className="flex flex-col gap-4 border-b border-[var(--line-soft)] pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-chip)] text-[var(--accent)]">
-              <BrainCircuit size={19} strokeWidth={1.6} />
-            </div>
-            <div>
-              <p className={`${eyebrow}`}>Deep research report</p>
-              <p className="mt-1 font-serif text-[clamp(17px,3vw,21px)] leading-tight tracking-[-0.02em] text-[var(--ink)]">
-                Supply-chain resilience in the semiconductor industry
-              </p>
-            </div>
+function ReportCard() {
+  return (
+    <div className="relative rounded-2xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] p-5 text-left shadow-[0_30px_80px_rgba(27,56,50,0.14)] sm:p-7">
+      <div className="flex flex-col gap-4 border-b border-[var(--line-soft)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3.5">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-chip)] text-[var(--accent)]">
+            <BrainCircuit size={19} strokeWidth={1.6} />
           </div>
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#e2ece3] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[#2f6a4f] dark:bg-[#15211b] dark:text-[#8ccfb0]">
-            <Check size={11} strokeWidth={2.5} /> Verified
-          </span>
-        </div>
-
-        <div className="mt-5 space-y-3 text-[13px] leading-[1.75] text-[var(--body)]">
-          <p>
-            Taiwanese fabs account for the majority of advanced-node capacity, making global output
-            vulnerable to regional disruption
-            <a href="#src-1" className={citationBadge}>[1]</a>.
-          </p>
-          <p>
-            Inventory buffers of roughly six to eight weeks dampen short-term shocks but cannot
-            absorb a multi-quarter outage
-            <a href="#src-2" className={citationBadge}>[2]</a>.
-          </p>
-          <p>
-            Dual-sourcing and regional fab expansion are emerging as the dominant resilience
-            strategies through 2027
-            <a href="#src-3" className={citationBadge}>[3]</a>.
-          </p>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--line-soft)] pt-5">
-          <span className={`mr-1 ${eyebrow}`}>Verified sources</span>
-          <a href="#src-1" id="src-1" className={sourceChip}>SIA.org — 2026 outlook</a>
-          <a href="#src-2" id="src-2" className={sourceChip}>Nature Electronics</a>
-          <a href="#src-3" id="src-3" className={sourceChip}>McKinsey Quarterly</a>
-        </div>
-
-        <div className="mt-5 flex items-center gap-3">
-          <div className="h-1.5 flex-1 rounded-full bg-[var(--line-soft)]">
-            <div className="h-full w-[86%] rounded-full bg-[var(--accent)]" />
+          <div>
+            <p className={`${eyebrow}`}>Deep research report</p>
+            <p className="mt-1 font-serif text-[clamp(17px,3vw,21px)] leading-tight tracking-[-0.02em] text-[var(--ink)]">
+              Supply-chain resilience in the semiconductor industry
+            </p>
           </div>
-          <span className="font-mono text-[9px] text-[var(--muted)]">86% claim confidence</span>
         </div>
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#e2ece3] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[#2f6a4f] dark:bg-[#15211b] dark:text-[#8ccfb0]">
+          <Check size={11} strokeWidth={2.5} /> Verified
+        </span>
+      </div>
+
+      <div className="mt-5 space-y-3 text-[13px] leading-[1.75] text-[var(--body)]">
+        <p>
+          Taiwanese fabs account for the majority of advanced-node capacity, making global output
+          vulnerable to regional disruption
+          <a href="#src-1" className={citationBadge}>[1]</a>.
+        </p>
+        <p>
+          Inventory buffers of roughly six to eight weeks dampen short-term shocks but cannot
+          absorb a multi-quarter outage
+          <a href="#src-2" className={citationBadge}>[2]</a>.
+        </p>
+        <p>
+          Dual-sourcing and regional fab expansion are emerging as the dominant resilience
+          strategies through 2027
+          <a href="#src-3" className={citationBadge}>[3]</a>.
+        </p>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--line-soft)] pt-5">
+        <span className={`mr-1 ${eyebrow}`}>Verified sources</span>
+        <a href="#src-1" id="src-1" className={sourceChip}>SIA.org — 2026 outlook</a>
+        <a href="#src-2" id="src-2" className={sourceChip}>Nature Electronics</a>
+        <a href="#src-3" id="src-3" className={sourceChip}>McKinsey Quarterly</a>
+      </div>
+
+      <div className="mt-5 flex items-center gap-3">
+        <div className="h-1.5 flex-1 rounded-full bg-[var(--line-soft)]">
+          <div className="h-full w-[86%] rounded-full bg-[var(--accent)]" />
+        </div>
+        <span className="font-mono text-[9px] text-[var(--muted)]">86% claim confidence</span>
       </div>
     </div>
   );
@@ -286,6 +327,503 @@ function BentoFeature({
   );
 }
 
+function HeroTeaser() {
+  const [query, setQuery] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'loading' | 'result'>('idle');
+  const [step, setStep] = useState(0);
+  const [email, setEmail] = useState('');
+  const [captured, setCaptured] = useState(false);
+  const timersRef = useRef<number[]>([]);
+  const { toast } = useToast();
+
+  useEffect(
+    () => () => {
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+    },
+    [],
+  );
+
+  const runSearch = (e: FormEvent) => {
+    e.preventDefault();
+    if (phase === 'loading' || !query.trim()) return;
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+    setPhase('loading');
+    setStep(0);
+    timersRef.current.push(window.setTimeout(() => setStep(1), 650));
+    timersRef.current.push(window.setTimeout(() => setStep(2), 1300));
+    timersRef.current.push(
+      window.setTimeout(() => setPhase('result'), 2000),
+    );
+  };
+
+  const reset = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+    setPhase('idle');
+    setStep(0);
+    setQuery('');
+    setEmail('');
+    setCaptured(false);
+  };
+
+  const submitEmail = (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setCaptured(true);
+    toast({
+      title: 'Check your inbox',
+      description: 'Your citation-backed report is on its way, along with 5 free daily runs.',
+    });
+  };
+
+  const steps = [
+    'Initializing LangGraph agents...',
+    'Retrieving vectors...',
+    'Streaming via Groq...',
+  ];
+
+  return (
+    <div className="mx-auto mt-8 max-w-[640px]">
+      <form onSubmit={runSearch} className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g., What is the supply chain impact of TSMC's 2nm delay?"
+            disabled={phase === 'loading'}
+            className="w-full rounded-xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] py-3 pl-11 pr-4 text-left text-[13px] text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={phase === 'loading'}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-[13px] font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {phase === 'loading' ? (
+            <>
+              <Loader2 size={15} className="animate-spin" /> Running…
+            </>
+          ) : (
+            <>
+              Run AI Deep Search <ArrowUpRight size={15} strokeWidth={2} />
+            </>
+          )}
+        </button>
+      </form>
+
+      <div className="mt-3 min-h-[120px]">
+        {phase === 'loading' && (
+          <div className="rounded-xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] p-4 text-left">
+            {steps.map((label, i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <div
+                  key={label}
+                  className={`flex items-center gap-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] ${
+                    done
+                      ? 'text-[var(--accent)]'
+                      : active
+                        ? 'text-[var(--ink)]'
+                        : 'text-[var(--muted)]'
+                  }`}
+                >
+                  {done ? (
+                    <Check size={12} strokeWidth={2.5} />
+                  ) : active ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <span className="size-3" />
+                  )}
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {phase === 'result' && (
+          <div className="relative w-full overflow-hidden rounded-2xl">
+            <div className="pointer-events-none select-none blur-[3px]">
+              <ReportCard />
+            </div>
+
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-background/60">
+              <div className="relative w-full max-w-md rounded-2xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] p-6 text-center shadow-[0_30px_70px_rgba(27,56,50,0.25)]">
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={reset}
+                  className="absolute right-3 top-3 grid size-7 place-items-center rounded-md text-[var(--muted)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]"
+                >
+                  <X size={13} strokeWidth={2.2} />
+                </button>
+                {captured ? (
+                  <div>
+                    <div className="mx-auto grid size-11 place-items-center rounded-full bg-[#e2ece3] text-[#2f6a4f] dark:bg-[#15211b] dark:text-[#8ccfb0]">
+                      <Check size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="mt-4 font-serif text-[18px] tracking-[-0.01em] text-[var(--ink)]">
+                      You&apos;re in.
+                    </p>
+                    <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--body)]">
+                      The full citation-backed report is heading to {email}. Your 5 free daily runs
+                      are ready.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Mail size={18} className="mx-auto text-[var(--accent)]" />
+                    <p className="mt-3 font-serif text-[18px] leading-snug tracking-[-0.01em] text-[var(--ink)]">
+                      Unlock the full report
+                    </p>
+                    <p className="mt-2 text-[12px] leading-[1.6] text-[var(--body)]">
+                      Enter your email to unlock the full citation-backed report and claim your 5
+                      free daily runs.
+                    </p>
+                    <form
+                      onSubmit={submitEmail}
+                      className="mx-auto mt-4 flex w-full max-w-md flex-col items-center gap-3 sm:flex-row"
+                    >
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        className="w-full flex-1 rounded-md border border-zinc-700 bg-transparent px-4 py-2 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                      />
+                      <button
+                        type="submit"
+                        className="w-full whitespace-nowrap rounded-md bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] sm:w-auto"
+                      >
+                        Unlock Report
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const trustItems = [
+  { label: 'Groq', classes: 'font-mono text-[17px] font-semibold tracking-[0.05em]' },
+  {
+    label: 'LangChain',
+    icon: Link2,
+    classes: 'flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]',
+  },
+  { label: 'ChromaDB', classes: 'font-mono text-[15px] tracking-[0.02em]' },
+  { label: 'PyTorch', classes: 'text-[17px] font-bold italic tracking-[-0.02em]' },
+  { label: 'LangGraph', classes: 'font-mono text-[17px] font-semibold tracking-[0.05em]' },
+  { label: 'Hugging Face', classes: 'font-mono text-[15px] tracking-[0.02em]' },
+];
+
+function TrustItem({ label, icon: Icon, classes }: (typeof trustItems)[number]) {
+  return (
+    <span className={`${classes} shrink-0 text-[var(--ink)]`}>
+      {Icon ? <Icon size={15} strokeWidth={2} /> : null}
+      {label}
+    </span>
+  );
+}
+
+function TrustStrip() {
+  return (
+    <section
+      aria-label="Powered by enterprise-grade infrastructure"
+      className="overflow-hidden border-t border-[var(--line)] bg-[var(--bg-surface)]"
+    >
+      <div className="mx-auto max-w-[1200px] px-5 py-12 sm:px-8 sm:py-16">
+        <p className="text-center font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--muted)]">
+          Powered by enterprise-grade infrastructure
+        </p>
+        <div className="mt-6">
+          <div className="overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+            <div className="flex w-max animate-axiom-marquee items-center gap-x-12">
+              {[...trustItems, ...trustItems, ...trustItems, ...trustItems].map(
+                (item, i) => (
+                  <TrustItem key={i} {...item} />
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const useCases = [
+  {
+    id: 'finance',
+    label: 'Financial Analysis',
+    icon: BarChart3,
+    title: 'Q3 Tech Earnings & Supply Chain Forecast',
+    summary:
+      'Synthesized from earnings call transcripts, supplier disclosures, and analyst filings.',
+    bullets: [
+      'Margin compression across fabless leaders tracks closely with advanced-node pricing',
+      'Supply chain inventories of AI accelerators remain near record lows entering Q3',
+    ],
+    tags: ['SEC filings', 'Earnings transcripts', '10-K disclosures'],
+    confidence: 92,
+  },
+  {
+    id: 'regulatory',
+    label: 'Regulatory Review',
+    icon: Scale,
+    title: 'EU AI Act Compliance Mapping',
+    summary: 'Provision-by-provision mapping of the AI Act against current system architecture.',
+    bullets: [
+      'High-risk obligations map to the governance layer, not the retrieval layer',
+      'Transparency logging requirements are met by the existing claim-level audit trail',
+    ],
+    tags: ['EU AI Act', 'GDPR', 'ISO 42001'],
+    confidence: 88,
+  },
+  {
+    id: 'academic',
+    label: 'Academic Synthesis',
+    icon: BookOpen,
+    title: 'Recent Advancements in Neural Vector Architectures',
+    summary:
+      'Distilled from recent preprints and peer-reviewed literature on retrieval at scale.',
+    bullets: [
+      'Sparse-dense hybrid retrieval narrows the gap between recall and latency',
+      'Context-window compression techniques reduce retrieval cost without fidelity loss',
+    ],
+    tags: ['arXiv', 'NeurIPS', 'Nature Machine Intelligence'],
+    confidence: 90,
+  },
+];
+
+function UseCaseTabs() {
+  const [activeId, setActiveId] = useState(useCases[0].id);
+  const current = useCases.find((uc) => uc.id === activeId) ?? useCases[0];
+  const ActiveIcon = current.icon;
+
+  return (
+    <motion.section
+      id="usecases"
+      aria-labelledby="usecases-heading"
+      className="border-t border-[var(--line)] bg-[var(--bg-surface-soft)]"
+      {...sectionMotion}
+    >
+      <div className="mx-auto max-w-[1200px] px-5 py-20 sm:px-8 sm:py-28">
+        <div className="max-w-[680px]">
+          <p className={eyebrow}>Precision workflows</p>
+          <h2
+            id="usecases-heading"
+            className="mt-3 font-serif text-[clamp(34px,5vw,58px)] leading-[1.02] tracking-[-0.04em] text-[var(--ink)]"
+          >
+            Engineered for precision workflows.
+          </h2>
+          <p className="mt-4 max-w-[560px] text-[13.5px] leading-[1.7] text-[var(--body)]">
+            One instrument, tuned to the research language of your industry — with the same
+            claim-level evidence trail.
+          </p>
+        </div>
+
+        <div role="tablist" aria-label="Industry use cases" className="mt-10 flex flex-wrap gap-2">
+          {useCases.map((uc) => {
+            const Icon = uc.icon;
+            const selected = activeId === uc.id;
+            return (
+              <button
+                key={uc.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setActiveId(uc.id)}
+                className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-medium transition-colors duration-300 ${
+                  selected
+                    ? 'text-[var(--ink)]'
+                    : 'text-[var(--body)] hover:text-[var(--ink)]'
+                }`}
+              >
+                {selected && (
+                  <motion.span
+                    layoutId="usecase-pill"
+                    className="absolute inset-0 rounded-full border border-[var(--line-soft)] bg-[var(--bg-elevated)] shadow-[0_10px_30px_rgba(27,56,50,0.10)]"
+                    transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                  />
+                )}
+                <Icon size={15} strokeWidth={1.8} className="relative" />
+                <span className="relative">{uc.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <motion.div layout className="mt-8">
+          <AnimatePresence mode="wait">
+            <motion.article
+              key={current.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="rounded-2xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] p-6 text-left shadow-[0_24px_60px_rgba(27,56,50,0.10)] sm:p-8"
+            >
+              <div className="flex flex-col gap-4 border-b border-[var(--line-soft)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-chip)] text-[var(--accent)]">
+                    <ActiveIcon size={19} strokeWidth={1.6} />
+                  </div>
+                  <div>
+                    <p className={eyebrow}>{current.label}</p>
+                    <p className="mt-1 font-serif text-[clamp(17px,3vw,21px)] leading-tight tracking-[-0.02em] text-[var(--ink)]">
+                      {current.title}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#e2ece3] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[#2f6a4f] dark:bg-[#15211b] dark:text-[#8ccfb0]">
+                  <Check size={11} strokeWidth={2.5} /> Verified
+                </span>
+              </div>
+
+              <p className="mt-5 text-[13px] leading-[1.75] text-[var(--body)]">
+                {current.summary}
+              </p>
+
+              <ul className="mt-4 space-y-3 text-[13px] leading-[1.75] text-[var(--body)]">
+                {current.bullets.map((bullet, i) => (
+                  <li key={bullet}>
+                    {bullet}
+                    <a href="#usecases" className={citationBadge}>
+                      [{i + 1}]
+                    </a>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--line-soft)] pt-5">
+                {current.tags.map((tag) => (
+                  <span key={tag} className={sourceChip}>
+                    {tag}
+                  </span>
+                ))}
+                <div className="ml-auto flex items-center gap-3">
+                  <div className="h-1.5 w-24 rounded-full bg-[var(--line-soft)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent)]"
+                      style={{ width: `${current.confidence}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-[9px] text-[var(--muted)]">
+                    {current.confidence}% claim confidence
+                  </span>
+                </div>
+              </div>
+            </motion.article>
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </motion.section>
+  );
+}
+
+function LeadMagnet() {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const { toast } = useToast();
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitted(true);
+    toast({
+      title: 'Blueprint on its way',
+      description: 'Check your inbox for the Architecture Blueprint.',
+    });
+  };
+
+  return (
+    <motion.section
+      aria-labelledby="blueprint-heading"
+      className="relative overflow-hidden border-t border-[#24362e] bg-[#1b3832] text-[#f3efe2]"
+      {...sectionMotion}
+    >
+      <div
+        aria-hidden="true"
+        className="bg-grid absolute inset-0 opacity-[0.06] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: 'radial-gradient(900px 400px at 50% -10%, rgba(94,194,124,0.14), transparent 60%)',
+        }}
+      />
+      <div className="relative mx-auto max-w-[760px] px-5 py-20 text-center sm:px-8 sm:py-28">
+        <div className="mx-auto grid size-12 place-items-center rounded-2xl border border-[#3a5248] bg-[#243f38] text-[#5ec27c]">
+          <Download size={20} strokeWidth={1.8} />
+        </div>
+        <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-[#a9b7a9]">
+          Free blueprint
+        </p>
+        <h2
+          id="blueprint-heading"
+          className="mx-auto mt-3 max-w-[560px] font-serif text-[clamp(34px,5vw,54px)] leading-[1.02] tracking-[-0.04em] text-[#f3efe2]"
+        >
+          Download the Architecture Blueprint.
+        </h2>
+        <p className="mx-auto mt-4 max-w-[560px] text-[13.5px] leading-[1.7] text-[#b9c3b4]">
+          Discover how our multi-agent RAG pipeline eliminates AI hallucinations and maps
+          claim-level citations.
+        </p>
+
+        {submitted ? (
+          <div className="mx-auto mt-9 flex max-w-[480px] items-center justify-center gap-2.5 rounded-xl border border-[#3a5248] bg-[#243f38]/70 px-5 py-4">
+            <Check size={16} className="shrink-0 text-[#5ec27c]" />
+            <p className="text-[13px] text-[#f3efe2]">
+              Check {email} — the blueprint is on its way.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="mx-auto mt-9 flex max-w-[480px] flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Mail
+                size={15}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8fa092]"
+              />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full rounded-xl border border-[#3a5248] bg-[#243f38] py-3 pl-11 pr-4 text-[13px] text-[#f3efe2] outline-none transition placeholder:text-[#8fa092] focus:border-[#5ec27c]"
+              />
+            </div>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f3efe2] px-6 py-3 text-[13.5px] font-semibold text-[#1b3832] transition hover:bg-white"
+            >
+              Get the Blueprint <ArrowUpRight size={15} strokeWidth={2} />
+            </button>
+          </form>
+        )}
+        <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.16em] text-[#8fa092]">
+          No spam · unsubscribe anytime
+        </p>
+      </div>
+    </motion.section>
+  );
+}
+
 export default function Landing() {
   const [isYearly, setIsYearly] = useState(false);
   const { toast } = useToast();
@@ -346,40 +884,34 @@ export default function Landing() {
         </header>
 
         <main id="main">
-          <motion.section className="relative overflow-hidden" {...sectionMotion}>
+          <motion.section
+            className="relative flex min-h-[calc(100svh-68px)] items-center overflow-hidden"
+            {...sectionMotion}
+          >
             <div
               aria-hidden="true"
               className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
             />
-            <div className="relative mx-auto max-w-[1200px] px-5 pb-16 pt-16 text-center sm:px-8 sm:pb-24 sm:pt-24">
+            <div className="relative mx-auto w-full max-w-[1200px] px-5 py-20 text-center sm:px-8 sm:py-24">
               <p className={`${eyebrow} mx-auto`}>Research instrument · enterprise AI deep research</p>
               <h1 className="mx-auto mt-5 max-w-[840px] font-serif text-[clamp(46px,8vw,92px)] leading-[0.94] tracking-[-0.05em] text-[var(--ink)]">
-                Autonomous AI Deep Research &amp; Evidence Engine
+                <span className="sr-only">
+                  Autonomous AI Deep Research &amp; Evidence Engine
+                </span>
+                <TypedHeadline />
               </h1>
               <p className="mx-auto mt-6 max-w-[640px] text-[15px] leading-[1.7] text-[var(--body)]">
                 Axiom turns complex research questions into defensible, citation-backed reports.
                 Powered by multi-agent web scraping and vector retrieval.
               </p>
-              <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <a
-                  href="/register"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-3.5 text-[14px] font-semibold text-[var(--on-accent)] shadow-[0_14px_34px_rgba(27,56,50,0.28)] transition hover:bg-[var(--accent-strong)] sm:w-auto"
-                >
-                  Start 5 Free Daily Research Runs <ArrowUpRight size={16} strokeWidth={2} />
-                </a>
-                <a
-                  href="#systems"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line-soft)] bg-[var(--bg-elevated)] px-6 py-3.5 text-[14px] font-medium text-[var(--ink)] transition hover:border-[var(--accent)] sm:w-auto"
-                >
-                  Explore the systems
-                </a>
-              </div>
+              <HeroTeaser />
               <p className="mt-4 font-mono text-[10px] text-[var(--muted)]">
                 No credit card · 5 deep reports / day · quota resets every 24h UTC
               </p>
-              <HeroVisual />
             </div>
           </motion.section>
+
+          <UseCaseTabs />
 
           <motion.section
             id="systems"
@@ -758,10 +1290,14 @@ export default function Landing() {
               </div>
             </div>
           </motion.section>
+
+          <TrustStrip />
+
+          <LeadMagnet />
         </main>
 
         <footer className="bg-[#111812] text-[#b9c3b4]">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-10 px-5 py-14 sm:px-8 lg:flex-row lg:items-start lg:justify-between">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-[300px]">
               <Link href="/" aria-label="Axiom — home" className="inline-flex items-center">
                 <AxiomLogo variant="dark" />

@@ -77,6 +77,18 @@ section[id] { scroll-margin-top: 5.5rem; }
 .animate-axiom-dash { animation: axiom-dash 3s linear infinite; }
 .animate-axiom-glow { animation: axiom-glow 3.2s ease-in-out infinite; }
 
+@keyframes axiom-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-25%); }
+}
+.animate-axiom-marquee { animation: axiom-marquee 32s linear infinite; }
+
+@keyframes axiom-caret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.typed-caret { animation: axiom-caret 1.05s steps(1) infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

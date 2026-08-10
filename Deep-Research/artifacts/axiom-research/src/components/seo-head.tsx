@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { faqItems } from '@/lib/faq';
 
-export const SITE_TITLE = 'Axiom | Autonomous AI Deep Research & Evidence Synthesis Agent';
+export const SITE_TITLE =
+  'Axiom | Autonomous AI Deep Research Agent with Verified, Citation-Backed Evidence';
 export const SITE_DESCRIPTION =
-  'Axiom is an enterprise AI deep research instrument that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports.';
+  'Axiom is an enterprise AI deep research agent that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports for market intelligence, competitive analysis, and decision-making.';
 
 type SeoHeadProps = {
   title?: string;
