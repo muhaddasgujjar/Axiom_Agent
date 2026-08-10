@@ -1,0 +1,1 @@
+--accent-mid:true | --accent-deep:true | --progress-track:true | --progress-fill:true | --tint-green:true | --tint-purple:true | --tint-amber:true | --tint-blue:true | --tint-stone:true | --tint-error:true | --danger:true | --header-bg:true | --scrim:true | --bg-surface: #0a0f0d:false | --tint-green: #16251f:false | --accent-mid: #7fae9f:false

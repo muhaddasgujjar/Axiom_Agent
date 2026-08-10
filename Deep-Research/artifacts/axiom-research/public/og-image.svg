@@ -1,0 +1,45 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#f8f7f2"/>
+  <defs>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#1b3832" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect x="48" y="48" width="1104" height="534" rx="28" stroke="#1b3832" stroke-opacity="0.22" stroke-width="2"/>
+
+  <g transform="translate(268 315)">
+    <circle r="96" stroke="#1b3832" stroke-opacity="0.35" stroke-width="3"/>
+    <g stroke="#1b3832" stroke-width="2.4" stroke-opacity="0.7">
+      <line x1="0" y1="-114" x2="0" y2="-84"/>
+      <line x1="0" y1="84" x2="0" y2="114"/>
+      <line x1="-114" y1="0" x2="-84" y2="0"/>
+      <line x1="84" y1="0" x2="114" y2="0"/>
+    </g>
+    <g stroke="#1b3832" stroke-width="2" stroke-opacity="0.6">
+      <path d="M0 -51 L69 -27 L69 27 L0 51 L-69 27 L-69 -27 Z"/>
+      <path d="M0 -51 L0 0"/>
+      <path d="M69 -27 L0 0"/>
+      <path d="M69 27 L0 0"/>
+      <path d="M0 51 L0 0"/>
+      <path d="M-69 27 L0 0"/>
+      <path d="M-69 -27 L0 0"/>
+    </g>
+    <g fill="#1b3832">
+      <circle cx="0" cy="-51" r="7"/>
+      <circle cx="69" cy="-27" r="7"/>
+      <circle cx="69" cy="27" r="7"/>
+      <circle cx="0" cy="51" r="7"/>
+      <circle cx="-69" cy="27" r="7"/>
+      <circle cx="-69" cy="-27" r="7"/>
+    </g>
+    <path d="M0 -58 L27 6 L0 3 L-27 6 Z" fill="#1b3832"/>
+    <path d="M0 58 L27 -6 L0 -3 L-27 -6 Z" fill="#b98a4d"/>
+    <circle r="6" fill="#1b3832"/>
+  </g>
+
+  <text x="440" y="300" font-family="Georgia, 'Times New Roman', serif" font-size="92" fill="#1b3832" letter-spacing="-2">Axiom</text>
+  <text x="446" y="338" font-family="'Courier New', monospace" font-size="16" fill="#8b988b" letter-spacing="7">RESEARCH INSTRUMENT</text>
+  <text x="440" y="420" font-family="Georgia, 'Times New Roman', serif" font-size="36" fill="#3d5246" letter-spacing="-0.5">Autonomous AI Deep Research</text>
+  <text x="440" y="468" font-family="Georgia, 'Times New Roman', serif" font-size="36" fill="#3d5246" letter-spacing="-0.5">&amp; Evidence Engine</text>
+</svg>

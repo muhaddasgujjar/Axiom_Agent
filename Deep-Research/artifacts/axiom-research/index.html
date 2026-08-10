@@ -3,19 +3,82 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Axiom Research</title>
-    <meta name="description" content="Axiom Research — built on Replit. Update this description to reflect the app." />
+    <title>Axiom | Autonomous AI Deep Research &amp; Evidence Synthesis Agent</title>
+    <meta
+      name="description"
+      content="Axiom is an enterprise AI deep research instrument that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports."
+    />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Axiom Research" />
-    <meta property="og:description" content="Axiom Research — built on Replit. Update this description to reflect the app." />
+    <meta property="og:site_name" content="Axiom" />
     <meta property="og:type" content="website" />
+    <meta property="og:title" content="Axiom | Autonomous AI Deep Research &amp; Evidence Synthesis Agent" />
+    <meta
+      property="og:description"
+      content="Axiom is an enterprise AI deep research instrument that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports."
+    />
+    <meta property="og:image" content="/og-image.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Axiom Research" />
-    <meta name="twitter:description" content="Axiom Research — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="Axiom | Autonomous AI Deep Research &amp; Evidence Synthesis Agent" />
+    <meta
+      name="twitter:description"
+      content="Axiom is an enterprise AI deep research instrument that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports."
+    />
+    <meta name="twitter:image" content="/og-image.svg" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script id="json-ld-software-application" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Axiom",
+        "applicationCategory": "Research/BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Axiom is an enterprise AI deep research instrument that autonomously scrapes web sources, builds neural vector indexes, and generates verified, citation-backed research reports.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+    <script id="json-ld-faq" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does Axiom ensure zero AI hallucinations in research reports?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Axiom runs every synthesized claim through a dedicated verification pass. After the multi-agent pipeline drafts a report, a natural-language inference (NLI) model scores each claim against the exact source passages it was derived from. Claims that lack direct, independently verified support are flagged, rewritten, or removed before publication — and every surviving claim carries an inline citation linking back to its source."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the difference between standard search engines and Axiom's AI agent?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A search engine returns a ranked list of links and leaves the synthesis to you. Axiom operates as an autonomous multi-agent research system: a planner breaks your question into sub-topics, specialized agents scrape and read full documents across the web in real time, a neural vector index retrieves the most relevant passages, and a verifier fact-checks each claim before a citation-backed report is assembled. The result is a defensible research trail, not a link list."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does Axiom enforce user data privacy and tenant isolation?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Every workspace is isolated at the database level using SQL row-level filtering, so each user only ever queries and retrieves rows belonging to their own tenant. Sources, reports, and research history are scoped to the workspace, encrypted in transit and at rest, and never shared across accounts. This guarantees zero data leakage between user workspaces."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are the daily research report quotas for the free tier?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The free tier includes 5 deep research reports per day. The quota resets automatically every 24 hours at midnight UTC, and your remaining allowance is shown directly in the workspace so you always know where you stand."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,15 +1,16 @@
-import { Check, FlaskConical } from 'lucide-react';
+import { ArrowLeft, Check, FlaskConical } from 'lucide-react';
+import { Link } from 'wouter';
 import type { ReactNode } from 'react';
 
 const benefits = ['One source of truth for every query', 'Private, role-based workspace'];
 
 export const authInputClass =
-  'w-full rounded-lg border border-[#d3d5cc] bg-white px-3.5 py-2.5 text-[13px] text-[#344b46] outline-none transition placeholder:text-[#a0a8a1] focus:border-[#83a99e] focus:ring-2 focus:ring-[#83a99e]/30';
+  'w-full rounded-lg border border-[var(--line-soft)] bg-[var(--bg-elevated)] px-3.5 py-2.5 text-[13px] text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30';
 
 export function AuthField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[11px] font-medium text-[#52605b]">{label}</label>
+      <label className="mb-1.5 block text-[11px] font-medium text-[var(--body)]">{label}</label>
       {children}
     </div>
   );
@@ -17,9 +18,19 @@ export function AuthField({ label, children }: { label: string; children: ReactN
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-white text-[#1d2d2c] lg:flex-row">
-      <main className="flex flex-1 flex-col justify-center px-8 py-12 sm:px-16">{children}</main>
-      <aside className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-slate-950 px-16 text-white lg:flex bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]">
+    <div className="relative min-h-screen w-full grid lg:grid-cols-2 bg-[var(--bg-surface)] text-[var(--ink)]">
+      <Link
+        href="/"
+        aria-label="Back to home"
+        data-testid="link-back-home"
+        className="absolute top-8 left-8 z-10 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]"
+      >
+        <ArrowLeft size={15} strokeWidth={1.8} /> Back to Home
+      </Link>
+      <main className="flex flex-col items-center justify-center w-full min-h-screen px-8 py-12 relative">
+        <div className="w-full max-w-[380px] mx-auto">{children}</div>
+      </main>
+      <aside className="hidden lg:flex flex-col items-center justify-center w-full min-h-screen bg-[#0a0f0d] relative p-12 overflow-hidden bg-[linear-gradient(to_right,rgba(27,56,50,0.35)_1px,transparent_1px),linear-gradient(to_bottom,rgba(27,56,50,0.35)_1px,transparent_1px)] bg-[size:24px_24px]">
         <div className="flex items-center gap-3">
           <div className="grid size-9 place-items-center rounded-xl bg-[#2b6f64] text-[#f5f3eb]">
             <FlaskConical size={18} strokeWidth={1.7} />

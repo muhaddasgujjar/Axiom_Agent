@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (user) return <Redirect to="/" />;
+  if (user) return <Redirect to="/workspace" />;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -24,7 +24,7 @@ export default function LoginPage() {
       {
         onSuccess: (res) => {
           signIn(res.token);
-          setLocation('/');
+          setLocation('/workspace');
         },
         onError: (err) => setError(apiErrorText(err, 'Invalid email or password.')),
       },
@@ -33,9 +33,9 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <p className="font-mono text-[9px] uppercase tracking-[.2em] text-blue-600">Secure workspace</p>
-      <h1 className="mt-3 font-serif text-[clamp(34px,4vw,46px)] leading-none tracking-[-.04em] text-[#24413d]">Sign in</h1>
-      <p className="mt-3 text-[13px] text-[#65706b]">Welcome back. Your research trail is waiting.</p>
+      <p className="font-mono text-[9px] uppercase tracking-[.2em] text-[var(--accent)]">Secure workspace</p>
+      <h1 className="mt-3 font-serif text-[clamp(34px,4vw,46px)] leading-none tracking-[-.04em] text-[var(--ink)]">Sign in</h1>
+      <p className="mt-3 text-[13px] text-[var(--body)]">Welcome back. Your research trail is waiting.</p>
       <form onSubmit={submit} data-testid="form-login" className="mt-8 max-w-[400px] space-y-5">
         <AuthField label="Email">
           <input
@@ -65,7 +65,7 @@ export default function LoginPage() {
               type="button"
               data-testid="button-toggle-password"
               onClick={() => setShow((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-blue-600 hover:text-blue-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-strong)]"
             >
               {show ? 'Hide' : 'Show'}
             </button>
@@ -80,15 +80,15 @@ export default function LoginPage() {
           type="submit"
           data-testid="button-submit-login"
           disabled={login.isPending || !email || !password}
-          className="w-full rounded-lg bg-blue-600 py-3 text-[13px] font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-[var(--accent)] py-3 text-[13px] font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
-        <p className="text-center text-[11px] text-[#8a918c]">Access is invitation-only. Request access from your workspace admin.</p>
+        <p className="text-center text-[11px] text-[var(--muted)]">Access is invitation-only. Request access from your workspace admin.</p>
       </form>
-      <p className="mt-6 max-w-[400px] text-[12px] text-[#65706b]">
+      <p className="mt-6 max-w-[400px] text-[12px] text-[var(--body)]">
         Don't have an account?{' '}
-        <Link href="/register" data-testid="link-to-register" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/register" data-testid="link-to-register" className="font-medium text-[var(--accent)] hover:text-[var(--accent-strong)]">
           Create one
         </Link>
       </p>

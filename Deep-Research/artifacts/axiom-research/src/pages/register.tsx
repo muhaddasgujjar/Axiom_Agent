@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (user) return <Redirect to="/" />;
+  if (user) return <Redirect to="/workspace" />;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -29,7 +29,7 @@ export default function RegisterPage() {
       {
         onSuccess: (res) => {
           signIn(res.token);
-          setLocation('/');
+          setLocation('/workspace');
         },
         onError: (err) => setError(apiErrorText(err, 'Could not create an account. Please try again.')),
       },
@@ -38,9 +38,9 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <p className="font-mono text-[9px] uppercase tracking-[.2em] text-blue-600">Secure workspace</p>
-      <h1 className="mt-3 font-serif text-[clamp(34px,4vw,46px)] leading-none tracking-[-.04em] text-[#24413d]">Create an account</h1>
-      <p className="mt-3 text-[13px] text-[#65706b]">Private, role-based research for your workspace.</p>
+      <p className="font-mono text-[9px] uppercase tracking-[.2em] text-[var(--accent)]">Secure workspace</p>
+      <h1 className="mt-3 font-serif text-[clamp(34px,4vw,46px)] leading-none tracking-[-.04em] text-[var(--ink)]">Create an account</h1>
+      <p className="mt-3 text-[13px] text-[var(--body)]">Private, role-based research for your workspace.</p>
       <form onSubmit={submit} data-testid="form-register" className="mt-8 max-w-[400px] space-y-5">
         <AuthField label="Email">
           <input
@@ -71,7 +71,7 @@ export default function RegisterPage() {
               type="button"
               data-testid="button-toggle-password"
               onClick={() => setShow((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-blue-600 hover:text-blue-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-strong)]"
             >
               {show ? 'Hide' : 'Show'}
             </button>
@@ -98,14 +98,14 @@ export default function RegisterPage() {
           type="submit"
           data-testid="button-submit-register"
           disabled={register.isPending || !email || password.length < 8 || !confirm}
-          className="w-full rounded-lg bg-blue-600 py-3 text-[13px] font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-[var(--accent)] py-3 text-[13px] font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {register.isPending ? 'Creating account…' : 'Create account'}
         </button>
       </form>
-      <p className="mt-6 max-w-[400px] text-[12px] text-[#65706b]">
+      <p className="mt-6 max-w-[400px] text-[12px] text-[var(--body)]">
         Already have an account?{' '}
-        <Link href="/login" data-testid="link-to-login" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/login" data-testid="link-to-login" className="font-medium text-[var(--accent)] hover:text-[var(--accent-strong)]">
           Sign in
         </Link>
       </p>
