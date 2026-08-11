@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+*.db
+*.sqlite3
+
+# Node / frontend (hosted separately on Vercel)
+Deep-Research/
+node_modules/
+
+# Git / OS
+.git/
+.gitignore
+.DS_Store
+
+# Local tooling
+.opencode/

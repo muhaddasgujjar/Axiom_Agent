@@ -1,0 +1,77 @@
+# render.yaml — Infrastructure as Code for the Axiom stack.
+#
+# Services:
+#   1. axiom-backend     — FastAPI / LangGraph research pipeline (Docker)
+#   2. axiom-api-server  — Express API server (Node) that the React app talks to
+# Databases:
+#   axiom-db — Postgres. NOTE: Render no longer offers a *free* Postgres tier.
+#   Set `plan: free` only if your account still qualifies; otherwise use a paid
+#   plan (e.g. `basic`) or provision a free external DB (Neon/Supabase) and set
+#   DATABASE_URL on the api-server service manually.
+#
+# One-time manual secrets to create in the Render dashboard:
+#   axiom-backend: OPENAI_API_KEY, TAVILY_API_KEY, FRONTEND_URL (Vercel URL)
+#   axiom-api-server: JWT_SECRET
+
+databases:
+  - name: axiom-db
+    plan: free
+    databaseName: axiom
+    user: axiom
+    ipAllowList: []
+
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI / LangGraph backend (Dockerized web service)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: axiom-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: RESEARCH_CHECKPOINT_DB
+        value: research_state.db
+      - key: NLI_DEVICE
+        value: cpu
+      - key: DEFAULT_USER_ID
+        value: user-web
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Express API server (frontend + DB + research proxy)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: axiom-api-server
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: Deep-Research
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --filter @workspace/api-server... && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: axiom-db
+          property: connectionString
+      - key: PYTHON_API_URL
+        fromService:
+          type: web
+          name: axiom-backend
+          property: url
+      - key: JWT_SECRET
+        sync: false
+      - key: WORKSPACE_MAX_CONTEXT_TOKENS
+        value: "1000000"

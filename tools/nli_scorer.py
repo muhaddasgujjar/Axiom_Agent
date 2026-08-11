@@ -3,9 +3,21 @@ import logging
 import os
 from typing import Dict, List, Tuple
 
-import torch
+try:
+    import torch  # noqa: E402
+
+    _TORCH_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    torch = None  # type: ignore[assignment]
+    _TORCH_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+if not _TORCH_AVAILABLE:
+    logger.warning(
+        "torch is not installed; NLI verification is disabled and "
+        "claims will be marked unverified (see agents/verifier.py)."
+    )
 
 MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
 LABELS: List[str] = ["contradiction", "entailment", "neutral"]
@@ -17,6 +29,8 @@ _DEVICE = None
 
 
 def _resolve_device() -> str:
+    if not _TORCH_AVAILABLE:
+        return "cpu"
     if torch.cuda.is_available():
         device = os.environ.get("NLI_DEVICE", "cuda")
         props = torch.cuda.get_device_properties(0)
@@ -35,6 +49,8 @@ def _resolve_device() -> str:
 
 def _get_model():
     global _MODEL, _DEVICE
+    if not _TORCH_AVAILABLE:
+        return None
     if _MODEL is None:
         from sentence_transformers import CrossEncoder
 
@@ -68,8 +84,20 @@ def _chunk_text(text: str, size: int = CHUNK_SIZE) -> List[str]:
     return chunks
 
 
+def _unavailable_result() -> Dict[str, object]:
+    return {
+        "label": "neutral",
+        "confidence": 0.0,
+        "verified": False,
+        "entailment_score": 0.0,
+        "window_scores": [],
+    }
+
+
 def verify_claim(claim: str, source_text: str) -> Dict[str, object]:
     model = _get_model()
+    if model is None:
+        return _unavailable_result()
     if _DEVICE.startswith("cuda"):
         torch.cuda.synchronize()
 

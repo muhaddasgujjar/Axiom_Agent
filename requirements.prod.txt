@@ -1,0 +1,17 @@
+# Production dependencies for the containerized FastAPI backend.
+# torch + sentence-transformers are intentionally excluded: the NLI verifier
+# degrades gracefully without them (see tools/nli_scorer.py), keeping the image
+# small enough for Render's free tier. Add them back for local GPU verification.
+langgraph
+langgraph-checkpoint-sqlite
+aiosqlite
+langchain-openai
+tavily-python
+httpx
+beautifulsoup4
+readability-lxml
+fastapi
+uvicorn
+sqlalchemy
+tenacity
+python-dotenv
