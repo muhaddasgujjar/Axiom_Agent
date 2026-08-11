@@ -11,7 +11,7 @@
 #
 # One-time manual secrets to create in the Render dashboard:
 #   axiom-backend: OPENAI_API_KEY, TAVILY_API_KEY, FRONTEND_URL (Vercel URL)
-#   axiom-api-server: JWT_SECRET
+#   axiom-api-server: JWT_SECRET, PYTHON_API_URL (https://axiom-backend.onrender.com)
 
 databases:
   - name: axiom-db
@@ -66,11 +66,11 @@ services:
         fromDatabase:
           name: axiom-db
           property: connectionString
+      # Render's fromService only exposes connectionString/host/hostport/port,
+      # not a full URL. Set this to the axiom-backend service URL manually, e.g.
+      # https://axiom-backend.onrender.com
       - key: PYTHON_API_URL
-        fromService:
-          type: web
-          name: axiom-backend
-          property: url
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: WORKSPACE_MAX_CONTEXT_TOKENS
