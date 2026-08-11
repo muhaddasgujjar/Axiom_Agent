@@ -3,22 +3,14 @@
 # Services:
 #   1. axiom-backend     — FastAPI / LangGraph research pipeline (Docker)
 #   2. axiom-api-server  — Express API server (Node) that the React app talks to
-# Databases:
-#   axiom-db — Postgres. NOTE: Render no longer offers a *free* Postgres tier.
-#   Set `plan: free` only if your account still qualifies; otherwise use a paid
-#   plan (e.g. `basic`) or provision a free external DB (Neon/Supabase) and set
-#   DATABASE_URL on the api-server service manually.
+#
+# PostgreSQL is hosted externally on Neon (free tier); Render only hosts the two
+# web services.
 #
 # One-time manual secrets to create in the Render dashboard:
 #   axiom-backend: OPENAI_API_KEY, TAVILY_API_KEY, FRONTEND_URL (Vercel URL)
-#   axiom-api-server: JWT_SECRET, PYTHON_API_URL (https://axiom-backend.onrender.com)
-
-databases:
-  - name: axiom-db
-    plan: free
-    databaseName: axiom
-    user: axiom
-    ipAllowList: []
+#   axiom-api-server: JWT_SECRET, PYTHON_API_URL (https://axiom-backend.onrender.com),
+#                     DATABASE_URL (Neon Postgres connection string)
 
 services:
   # ---------------------------------------------------------------------------
@@ -62,10 +54,10 @@ services:
         value: production
       - key: NODE_VERSION
         value: "22"
+      # External Neon (free tier) Postgres connection string, e.g.
+      # postgres://user:password@ep-xxx.us-east-2.aws.neon.tech/axiom
       - key: DATABASE_URL
-        fromDatabase:
-          name: axiom-db
-          property: connectionString
+        sync: false
       # Render's fromService only exposes connectionString/host/hostport/port,
       # not a full URL. Set this to the axiom-backend service URL manually, e.g.
       # https://axiom-backend.onrender.com
