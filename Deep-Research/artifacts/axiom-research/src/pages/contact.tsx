@@ -80,18 +80,18 @@ export default function ContactPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="min-h-[100dvh] bg-[var(--bg-surface)] font-sans text-[var(--ink)]">
+      <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[var(--bg-surface)] font-sans text-[var(--ink)]">
         <SeoHead
           title="Contact | Axiom Research"
           description="Talk to the Axiom team about enterprise RAG integration and custom AI research pipelines. Send a request and we'll respond within one business day."
           path="/contact"
         />
-        <div className="grid min-h-[100dvh] lg:grid-cols-2">
+        <div className="flex min-h-[100dvh] flex-col lg:flex-row">
           <motion.aside
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
-            className="relative flex flex-col justify-between overflow-hidden bg-[#1b3832] px-6 py-10 text-[#f3efe2] sm:px-12 lg:py-14"
+            className="relative flex flex-col justify-between overflow-hidden bg-[#1b3832] px-4 py-8 text-[#f3efe2] sm:px-8 sm:py-16 lg:flex-1"
           >
             <div
               aria-hidden
@@ -151,9 +151,9 @@ export default function ContactPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
-            className="flex flex-col bg-[var(--bg-surface)]"
+            className="flex min-w-0 flex-col bg-[var(--bg-surface)] lg:flex-1"
           >
-            <div className="flex items-center justify-between px-6 pt-6 sm:px-12">
+            <div className="flex items-center justify-between px-4 pt-6 sm:px-8">
               <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--muted)]">
                 Axiom Research
               </p>
@@ -161,14 +161,14 @@ export default function ContactPage() {
                 <ThemeToggle />
                 <Link
                   href="/"
-                  className="inline-flex items-center rounded-lg px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] transition hover:text-[var(--ink)]"
+                  className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] transition hover:text-[var(--ink)]"
                 >
                   Back to home
                 </Link>
               </div>
             </div>
 
-            <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-12">
+            <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8 sm:py-16">
               <div className="w-full max-w-[460px]">
                 {submitted ? (
                   <motion.div

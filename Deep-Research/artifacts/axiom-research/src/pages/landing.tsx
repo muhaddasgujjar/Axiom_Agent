@@ -22,6 +22,7 @@ import {
   Loader2,
   LockKeyhole,
   Mail,
+  Menu,
   Quote,
   Scale,
   Search,
@@ -37,7 +38,14 @@ import {
 } from '@/components/ui/accordion';
 import AxiomLogo from '@/components/axiom-logo';
 import ThemeToggle from '@/components/theme-toggle';
+import Footer from '@/components/footer';
 import SeoHead, { SITE_DESCRIPTION, SITE_TITLE } from '@/components/seo-head';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { faqItems } from '@/lib/faq';
 import { sendEmail } from '@/lib/email';
@@ -420,7 +428,7 @@ function HeroTeaser() {
         <button
           type="submit"
           disabled={phase === 'loading'}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-[13px] font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-[13px] font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {phase === 'loading' ? (
             <>
@@ -671,7 +679,7 @@ function UseCaseTabs() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setActiveId(uc.id)}
-                className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-medium transition-colors duration-300 ${
+                className={`relative inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-medium transition-colors duration-300 ${
                   selected
                     ? 'text-[var(--ink)]'
                     : 'text-[var(--body)] hover:text-[var(--ink)]'
@@ -794,6 +802,7 @@ function LeadMagnet() {
 
   return (
     <motion.section
+      id="blueprint"
       aria-labelledby="blueprint-heading"
       className="relative overflow-hidden border-t border-[#24362e] bg-[#1b3832] text-[#f3efe2]"
       {...sectionMotion}
@@ -853,7 +862,7 @@ function LeadMagnet() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f3efe2] px-6 py-3 text-[13.5px] font-semibold text-[#1b3832] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-[#f3efe2] px-6 py-3 text-[13.5px] font-semibold text-[#1b3832] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {isSubmitting ? (
                 <>
@@ -877,12 +886,13 @@ function LeadMagnet() {
 
 export default function Landing() {
   const [isYearly, setIsYearly] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const notifyComingSoon = () =>
     toast({ title: 'Payment integration coming soon.', description: 'This tier will be available for checkout shortly.' });
   return (
     <MotionConfig reducedMotion="user">
-      <div className="min-h-[100dvh] bg-[var(--bg-surface)] font-sans text-[var(--ink)]">
+      <div className="min-h-[100dvh] w-full overflow-x-clip bg-[var(--bg-surface)] font-sans text-[var(--ink)]">
         <SeoHead title={SITE_TITLE} description={SITE_DESCRIPTION} path="/" />
         <a
           href="#main"
@@ -891,9 +901,9 @@ export default function Landing() {
           Skip to content
         </a>
 
-        <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--bg-surface)]/90 backdrop-blur">
-          <div className="mx-auto flex h-[68px] max-w-[1200px] items-center justify-between px-5 sm:px-8">
-            <Link href="/" aria-label="Axiom — home" className="inline-flex items-center">
+        <header className="sticky top-0 z-50 border-b border-white/10 bg-background/90 backdrop-blur-md">
+          <div className="mx-auto flex h-[68px] max-w-[1200px] items-center justify-between gap-3 px-5 sm:px-8">
+            <Link href="/" aria-label="Axiom — home" className="inline-flex min-w-0 items-center">
               <AxiomLogo variant="light" />
             </Link>
             <nav
@@ -916,22 +926,69 @@ export default function Landing() {
                 Contact
               </Link>
             </nav>
-            <div className="flex items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5">
               <ThemeToggle />
               <Link
                 href="/login"
-                className="rounded-lg px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition hover:bg-[var(--bg-chip)]"
+                className="hidden min-h-11 items-center rounded-lg px-4 text-[13px] font-medium text-[var(--ink)] transition hover:bg-[var(--bg-chip)] md:inline-flex"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+                className="hidden min-h-11 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 text-[13px] font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] md:inline-flex"
               >
                 Open Workspace
               </Link>
+              <button
+                type="button"
+                aria-label="Open menu"
+                onClick={() => setMenuOpen(true)}
+                className="grid size-11 shrink-0 place-items-center rounded-lg text-[var(--body)] transition hover:bg-[var(--bg-chip)] md:hidden"
+              >
+                <Menu size={20} strokeWidth={1.8} />
+              </button>
             </div>
           </div>
+
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetContent side="right" className="border-l border-[var(--line)] bg-[var(--bg-surface)] text-[var(--ink)] sm:max-w-sm">
+              <SheetHeader className="items-start">
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <Link
+                  href="/"
+                  aria-label="Axiom — home"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex items-center"
+                >
+                  <AxiomLogo variant="light" />
+                </Link>
+              </SheetHeader>
+              <nav aria-label="Primary mobile" className="mt-8 flex flex-col gap-1">
+                <a href="#systems" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]">Systems</a>
+                <a href="#security" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]">Security</a>
+                <a href="#faq" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]">FAQ</a>
+                <a href="#pricing" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]">Pricing</a>
+                <Link href="/contact" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--bg-chip)] hover:text-[var(--ink)]">Contact</Link>
+              </nav>
+              <div className="mt-10 space-y-2.5 border-t border-[var(--line)] pt-6">
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-[13px] font-medium text-[var(--ink)] transition hover:bg-[var(--bg-chip)]"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 text-[13px] font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+                >
+                  Open Workspace
+                </Link>
+              </div>
+            </SheetContent>
+          </Sheet>
         </header>
 
         <main id="main">
@@ -945,7 +1002,7 @@ export default function Landing() {
             />
             <div className="relative mx-auto w-full max-w-[1200px] px-5 py-20 text-center sm:px-8 sm:py-24">
               <p className={`${eyebrow} mx-auto`}>Research instrument · enterprise AI deep research</p>
-              <h1 className="mx-auto mt-5 max-w-[840px] font-serif text-[clamp(46px,8vw,92px)] leading-[0.94] tracking-[-0.05em] text-[var(--ink)]">
+              <h1 className="mx-auto mt-5 max-w-[840px] font-serif text-3xl leading-[1.05] tracking-[-0.04em] text-[var(--ink)] sm:text-5xl md:text-6xl">
                 <span className="sr-only">
                   Autonomous AI Deep Research &amp; Evidence Engine
                 </span>
@@ -1347,52 +1404,7 @@ export default function Landing() {
           <LeadMagnet />
         </main>
 
-        <footer className="bg-[#111812] text-[#b9c3b4]">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-[300px]">
-              <Link href="/" aria-label="Axiom — home" className="inline-flex items-center">
-                <AxiomLogo variant="dark" />
-              </Link>
-              <p className="mt-4 text-[12px] leading-[1.6] text-[#8b9989]">
-                Autonomous deep research with verified, citation-backed evidence.
-              </p>
-            </div>
-            <nav aria-label="Legal" className="flex flex-wrap gap-x-12 gap-y-6">
-              <div className="space-y-3">
-                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#64756a]">
-                  Legal
-                </p>
-                <Link href="/privacy" className="block text-[12px] transition hover:text-[#f3efe2]">
-                  Privacy policy
-                </Link>
-                <Link href="/terms" className="block text-[12px] transition hover:text-[#f3efe2]">
-                  Terms of service
-                </Link>
-              </div>
-              <div className="space-y-3">
-                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#64756a]">
-                  Product
-                </p>
-                <Link href="/docs" className="block text-[12px] transition hover:text-[#f3efe2]">
-                  Documentation
-                </Link>
-                <Link href="/contact" className="block text-[12px] transition hover:text-[#f3efe2]">
-                  Book a consultation
-                </Link>
-                <a href="#systems" className="block text-[12px] transition hover:text-[#f3efe2]">
-                  How it works
-                </a>
-              </div>
-            </nav>
-            <div className="flex w-fit items-center gap-2.5 rounded-full border border-[#2a352d] bg-[#161e18] px-4 py-2">
-              <span className="size-2 animate-pulse rounded-full bg-[#5ec27c]" />
-              <span className="font-mono text-[10px] text-[#b9c3b4]">All systems operational</span>
-            </div>
-          </div>
-          <div className="border-t border-[#222b24] py-5 text-center font-mono text-[9px] text-[#5c6b5d]">
-            © {new Date().getFullYear()} Axiom Research. All rights reserved.
-          </div>
-        </footer>
+        <Footer />
       </div>
     </MotionConfig>
   );

@@ -111,7 +111,7 @@ section[id] { scroll-margin-top: 5.5rem; }
     width: 100%;
     padding: 0 !important;
   }
-  #report-container .prose { font-size: 12pt; line-height: 1.7; }
+  #report-container .prose { font-size: 12pt; line-height: 1.7; --tw-prose-body: #1e293b !important; --tw-prose-headings: #0f172a !important; --tw-prose-lead: #334155 !important; --tw-prose-links: #1d4ed8 !important; --tw-prose-bold: #0f172a !important; --tw-prose-counters: #334155 !important; --tw-prose-bullets: #475569 !important; --tw-prose-hr: #e2e8f0 !important; --tw-prose-quotes: #0f172a !important; --tw-prose-quote-borders: #cbd5e1 !important; --tw-prose-captions: #64748b !important; --tw-prose-code: #0f172a !important; --tw-prose-pre-code: #e2e8f0 !important; --tw-prose-pre-bg: #0f172a !important; --tw-prose-th-borders: #cbd5e1 !important; --tw-prose-td-borders: #e2e8f0 !important; }
   #report-container .prose h1 { font-size: 20pt; }
   #report-container .prose h2 { font-size: 15pt; }
   #report-container .prose h3 { font-size: 12.5pt; }

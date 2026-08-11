@@ -18,7 +18,7 @@ export function AuthField({ label, children }: { label: string; children: ReactN
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-screen w-full grid lg:grid-cols-2 bg-[var(--bg-surface)] text-[var(--ink)]">
+    <div className="relative min-h-screen w-full overflow-x-hidden grid lg:grid-cols-2 bg-[var(--bg-surface)] text-[var(--ink)]">
       <Link
         href="/"
         aria-label="Back to home"

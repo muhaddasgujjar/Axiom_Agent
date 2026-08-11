@@ -76,15 +76,15 @@ export function ProfileModal({ open, onOpenChange }: { open: boolean; onOpenChan
 
           <div>
             <label htmlFor="profile-email" className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.16em] text-[var(--muted)]">Email</label>
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3.5 py-3 focus-within:border-[var(--accent-mid)]">
+            <div className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3.5 py-2.5 focus-within:border-[var(--accent-mid)] dark:border-white/10 dark:bg-white/5">
               <Mail size={14} className="shrink-0 text-[var(--muted)]" />
-              <input id="profile-email" data-testid="input-profile-email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-transparent text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted-2)]" />
+              <input id="profile-email" data-testid="input-profile-email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="min-w-0 w-full truncate bg-transparent text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted-2)] dark:text-slate-200" />
             </div>
           </div>
 
           <div>
             <label htmlFor="profile-password" className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.16em] text-[var(--muted)]">New password</label>
-            <input id="profile-password" data-testid="input-profile-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to keep current" className="w-full rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3.5 py-3 text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted-2)] focus:border-[var(--accent-mid)]" />
+            <input id="profile-password" data-testid="input-profile-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to keep current" className="w-full min-h-[44px] rounded-xl border border-[var(--line)] bg-[var(--bg-elevated)] px-3.5 py-2.5 text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted-2)] focus:border-[var(--accent-mid)] dark:border-white/10 dark:bg-white/5 dark:text-slate-200" />
             {passwordChanged && password.length < 8 && <p className="mt-1.5 text-[10px] text-[var(--danger)]">Password must be at least 8 characters.</p>}
           </div>
 
@@ -92,8 +92,8 @@ export function ProfileModal({ open, onOpenChange }: { open: boolean; onOpenChan
         </div>
 
         <DialogFooter>
-          <Button data-testid="button-cancel-profile" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button data-testid="button-save-profile" onClick={onSave} disabled={!canSave}>
+          <Button data-testid="button-cancel-profile" variant="outline" className="w-full min-h-[44px] sm:w-auto" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button data-testid="button-save-profile" className="w-full min-h-[44px] sm:w-auto" onClick={onSave} disabled={!canSave}>
             {update.isPending ? 'Saving…' : 'Save Changes'}
           </Button>
         </DialogFooter>

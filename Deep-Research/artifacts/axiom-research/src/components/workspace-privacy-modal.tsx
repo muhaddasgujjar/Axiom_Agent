@@ -19,7 +19,7 @@ import {
 
 function Metric({ label, value, tone = '' }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-surface)] p-4">
+    <div className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--bg-surface)] p-4">
       <p className="font-mono text-[9px] uppercase tracking-[.15em] text-[var(--muted)]">{label}</p>
       <p className={`mt-2 font-serif text-2xl text-[var(--ink)] ${tone}`}>{value}</p>
     </div>
@@ -94,12 +94,12 @@ export function WorkspacePrivacyModal({ open, onOpenChange }: { open: boolean; o
         </div>
 
         <div className="rounded-xl border border-[var(--line-error)] bg-[var(--tint-error)] p-3.5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium text-[var(--danger)]">Purge inactive workspace cache</p>
               <p className="mt-0.5 text-[10px] leading-[1.5] text-[var(--danger)]">Clears temporary scraped HTML buffers from completed and failed runs to free up context.</p>
             </div>
-            <Button data-testid="button-purge-workspace-cache" variant="destructive" className="shrink-0" onClick={onPurge} disabled={purge.isPending}>
+            <Button data-testid="button-purge-workspace-cache" variant="destructive" className="shrink-0 min-h-[44px]" onClick={onPurge} disabled={purge.isPending}>
               {purge.isPending ? 'Purging…' : <span className="flex items-center gap-1.5"><Trash2 size={13} /> Purge</span>}
             </Button>
           </div>
@@ -108,7 +108,7 @@ export function WorkspacePrivacyModal({ open, onOpenChange }: { open: boolean; o
         </div>
 
         <DialogFooter>
-          <Button data-testid="button-close-privacy-modal" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button data-testid="button-close-privacy-modal" className="w-full min-h-[44px] sm:w-auto" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
