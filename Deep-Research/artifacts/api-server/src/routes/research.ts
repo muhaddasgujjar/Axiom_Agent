@@ -24,8 +24,13 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const PYTHON_API_URL = process.env["PYTHON_API_URL"] ?? "http://localhost:8000";
+const PYTHON_API_URL = (process.env["PYTHON_API_URL"] ?? "http://localhost:8000").replace(/\/+$/, "");
 const PYTHON_TIMEOUT_MS = 5000;
+
+function buildPythonUrl(path: string): string {
+  const cleaned = path.replace(/^\/+/, "").replace(/\/+$/, "");
+  return `${PYTHON_API_URL}/${cleaned}`;
+}
 
 const stages = ["planning", "searching", "reading", "synthesizing", "verifying", "formatting", "done"] as const;
 type ActiveStage = (typeof stages)[number];
@@ -80,7 +85,9 @@ function userScope(uid: string) {
 
 async function pythonFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T | null> {
   try {
-    const response = await fetch(`${PYTHON_API_URL}${path}`, {
+    const url = buildPythonUrl(path);
+    console.log(`[python-proxy] ${init.method ?? "GET"} -> ${url}`);
+    const response = await fetch(url, {
       ...init,
       headers: { "content-type": "application/json", ...(init.headers ?? {}) },
       signal: AbortSignal.timeout(PYTHON_TIMEOUT_MS),
