@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db, userUsageTable, type UserUsage } from "@workspace/db";
+import { logger } from "../lib/logger";
 
 export const DAILY_REPORT_LIMIT = 5;
 
@@ -47,6 +48,7 @@ export async function checkDailyLimits(req: Request, res: Response, next: NextFu
   }
 
   if (usage.reportsToday >= DAILY_REPORT_LIMIT) {
+    logger.warn({ userId, reportsToday: usage.reportsToday, dailyLimit: DAILY_REPORT_LIMIT }, "429 daily research limit reached in checkDailyLimits; rejected before contacting the Python backend");
     res.status(429).json({ error: "Daily limit reached. Resets at midnight UTC." });
     return;
   }

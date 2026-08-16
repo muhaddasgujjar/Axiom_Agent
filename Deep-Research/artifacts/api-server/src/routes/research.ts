@@ -381,7 +381,11 @@ async function startResearchProxy(req: Request, res: Response): Promise<void> {
   ).rows as { reports_today: number }[];
 
   if (reserved.length === 0) {
-    req.log.info({ userId }, "Daily research limit reached at reserve time");
+    const [usage] = await db.select().from(userUsageTable).where(eq(userUsageTable.userId, userId)).limit(1);
+    req.log.warn(
+      { userId, reportsToday: usage?.reportsToday, dailyLimit: DAILY_REPORT_LIMIT },
+      "429 daily research limit reached at reserve time; last slot taken by a concurrent request",
+    );
     res.status(429).json({ error: "Daily limit reached. Resets at midnight UTC." });
     return;
   }
