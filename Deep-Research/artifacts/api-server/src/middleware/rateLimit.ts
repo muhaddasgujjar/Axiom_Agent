@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, userUsageTable, type UserUsage } from "@workspace/db";
 import { logger } from "../lib/logger";
 
-export const DAILY_REPORT_LIMIT = 5;
+export const DAILY_REPORT_LIMIT = 1000; // TODO: temporary bump while debugging production (was 5)
 
 declare global {
   namespace Express {
